@@ -1,7 +1,7 @@
 // Episode 1, vertical flat cut — scene 1 (0:00–0:59.5): the flat, the knocking, the blood.
 // One panel per caption, roughly; panels start at the pause before a script line (C(n), see timing.js).
 'use strict';
-var XFADE = .18, END = 350.4;
+var XFADE = .18, END = 353.4;
 
 // ---------- shared pieces ----------
 

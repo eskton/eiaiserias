@@ -17,10 +17,10 @@ TIMECODES = os.path.join(REPO, 'audio/ep01/timecodes.csv')
 ALIGNMENT = os.path.join(REPO, 'audio/ep01/alignment.json')
 FLAT = os.path.join(os.path.dirname(SRC), 'flat')
 SHOTS = [os.path.join(VIDEO, 'engine/flat.js'), os.path.join(SRC, 'timing.js'), os.path.join(FLAT, 'captions.js')] + \
-    [os.path.join(FLAT, f) for f in ['scene1.js']]
+    [os.path.join(FLAT, f'scene{k}.js') for k in range(1, 7)]
 FPS, FW, FH = 30, 1080, 1920
-# The voiceover breaks off mid-word on line 223, so the episode ends after line 222.
-END = 350.4
+# The voiceover breaks off mid-word on line 223: captions stop after line 222, then a 3 s end card.
+VOICE_END, END = 350.4, 353.4
 
 
 def ass_time(t):
@@ -100,7 +100,7 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.tmp, exist_ok=True)
     write_timing()
-    subprocess.run([sys.executable, os.path.join(FLAT, 'captions.py'), ALIGNMENT, os.path.join(FLAT, 'captions.js'), str(a.end)], check=True)
+    subprocess.run([sys.executable, os.path.join(FLAT, 'captions.py'), ALIGNMENT, os.path.join(FLAT, 'captions.js'), str(min(a.end, VOICE_END))], check=True)
     frames = int(round(a.end * FPS))
     n = a.workers * 2
     cuts = [frames * i // n for i in range(n + 1)]

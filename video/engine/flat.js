@@ -32,7 +32,7 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   const p = pose, L = look, side = p.face || 0, kid = L.child ? 1 : 0;
   const U = (u, v) => [x + u * h, y + v * h], dir = a => [Math.sin(a), Math.cos(a)];
   const crouch = p.crouch || 0, lean = p.lean || 0;
-  const hip = [p.dx || 0, p.hipY ?? (p.sit ? -0.27 : -0.46 + crouch * 0.2)];
+  const hip = [p.dx || 0, p.hipY ?? (p.sit === 'front' ? (kid ? -0.24 : -0.3) : p.sit ? -0.27 : -0.46 + crouch * 0.2)];
   const torso = kid ? 0.27 : 0.32;
   const neck = [hip[0] + Math.sin(lean) * torso, hip[1] - Math.cos(lean) * torso];
   const hr = kid ? 0.105 : 0.085, hd = p.head || [0, 0];
@@ -43,11 +43,12 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
     ctx.beginPath(); pts.forEach((q, i) => { const [a, b] = U(...q); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.stroke();
   };
   const legLen = kid ? 0.19 : 0.225;
+  const thighK = p.thigh ?? (p.sit === 'front' ? .3 : 1);
   const leg = (k, a, col) => {
     let [ah, ak] = a || [0, 0];
-    if (p.sit) { ah = (side || 1) * 1.45 + (k * 0.05); ak = -(side || 1) * 1.45; }
+    if (p.sit === 1) { ah = (side || 1) * 1.45 + (k * 0.05); ak = -(side || 1) * 1.45; }
     const j = [hip[0] + (side ? 0.012 * k : 0.052 * k), hip[1]];
-    const sq = 1 - crouch * 0.3, d1 = dir(ah), kn = [j[0] + d1[0] * legLen, j[1] + d1[1] * legLen * sq];
+    const sq = 1 - crouch * 0.3, d1 = dir(ah), th = legLen * thighK, kn = [j[0] + d1[0] * th, j[1] + d1[1] * th * sq];
     const d2 = dir(ah + ak), an = [kn[0] + d2[0] * legLen, kn[1] + d2[1] * legLen * sq];
     stroke([j, kn, an], 0.078, col);
     const f = side || (k * 0.25);
@@ -103,6 +104,7 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   const hb = L.bald || 0;
   ctx.beginPath(); ctx.ellipse(hx - side * R * .12, hy - R * .25, R * 1.04, R * (.85 - hb * .35), 0, Math.PI, 0); ctx.closePath(); ctx.fill();
   if (!hb) { ctx.beginPath(); ctx.ellipse(hx - side * R * .12, hy - R * .3, R * 1.02, R * .55, 0, 0, Math.PI); ctx.fill(); }
+  if (p.back) { ctx.fillStyle = L.hair; ell(ctx, hx, hy - R * .05, R * 1.02, R * (L.bald ? .7 : 1.0)); ctx.fill(); return { head: [hx, hy], R, hands: arms }; }
   // the face
   const fx = hx + side * R * .38, fy = hy + R * .08, eye = p.eyes || 'dot';
   const eyeAt = side ? [[fx + side * R * .22, fy]] : [[hx - R * .36, fy], [hx + R * .36, fy]];
@@ -244,3 +246,78 @@ function tag(ctx, x, y, text, k = 1, bar = '#ffffff', sub = null) {
 
 // Fade-in factor for things that appear at time a (seconds), optionally gone by b.
 const appear = (t, a, b = 1e9, f = .18) => clamp((t - a) / f) * (1 - clamp((t - b) / f));
+
+// Head-and-shoulders portrait for close-ups. (cx, cy) is the centre of the face, s the head height.
+// o: eyes ('dot','wide','red','down','closed'), glowK, mouth 0..1, look [-1..1], veins, blood, nod.
+function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
+  const L = look, sk = L.skin, cy2 = cy + (o.nod || 0) * s * .08;
+  // shoulders and collar
+  ctx.fillStyle = L.top; rrect(ctx, cx - s * .98, cy + s * .62, s * 1.96, s * 1.4, s * .42); ctx.fill();
+  ctx.fillStyle = L.topD; rrect(ctx, cx + s * .1, cy + s * .62, s * .88, s * 1.4, [0, s * .42, 0, 0]); ctx.fill();
+  ctx.fillStyle = shade(L.top, -.3); poly(ctx, [[cx - s * .3, cy + s * .6], [cx, cy + s * .95], [cx + s * .3, cy + s * .6]]); ctx.fill();
+  // neck
+  ctx.fillStyle = shade(sk, -.14); rrect(ctx, cx - s * .17, cy2 + s * .25, s * .34, s * .5, s * .08); ctx.fill();
+  if (o.veins) {
+    ctx.strokeStyle = 'rgba(18,14,16,0.9)'; ctx.lineCap = 'round';
+    const vein = (x, y, a, len, w, dpt) => {
+      const ex = x + Math.sin(a) * len, ey = y - Math.cos(a) * len; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+      if (dpt > 0) { vein(ex, ey, a - .45, len * .7, w * .7, dpt - 1); vein(ex, ey, a + .4, len * .6, w * .65, dpt - 1); }
+    };
+    vein(cx - s * .08, cy2 + s * .75, -.15, s * .16, s * .028, 3); vein(cx + s * .1, cy2 + s * .75, .2, s * .15, s * .026, 3);
+  }
+  if (L.long) { ctx.fillStyle = L.hair; rrect(ctx, cx - s * .5, cy2 - s * .5, s, s * 1.15, s * .4); ctx.fill(); }
+  // head
+  ctx.fillStyle = sk; ell(ctx, cx, cy2, s * .4, s * .5); ctx.fill();
+  ctx.save(); ell(ctx, cx, cy2, s * .4, s * .5); ctx.clip();
+  ctx.fillStyle = shade(sk, -.1); ctx.fillRect(cx + s * .14, cy2 - s, s, s * 2);
+  if (o.veins) {
+    ctx.strokeStyle = 'rgba(18,14,16,0.75)'; ctx.lineWidth = s * .014;
+    for (const k of [-1, 1]) { ctx.beginPath(); ctx.moveTo(cx + k * s * .36, cy2 + s * .3); ctx.lineTo(cx + k * s * .3, cy2 + s * .1); ctx.lineTo(cx + k * s * .34, cy2 - s * .05); ctx.moveTo(cx + k * s * .3, cy2 + s * .1); ctx.lineTo(cx + k * s * .22, cy2 + s * .02); ctx.stroke(); }
+  }
+  ctx.restore();
+  ctx.fillStyle = shade(sk, -.08); ell(ctx, cx - s * .4, cy2 + s * .04, s * .06, s * .1); ctx.fill(); ell(ctx, cx + s * .4, cy2 + s * .04, s * .06, s * .1); ctx.fill();
+  // hair
+  ctx.fillStyle = L.hair;
+  ctx.beginPath(); ctx.ellipse(cx, cy2 - s * .14, s * .43, s * (.42 - (L.bald || 0) * .2), 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  if (!L.bald) { ctx.beginPath(); ctx.moveTo(cx - s * .43, cy2 - s * .14); ctx.quadraticCurveTo(cx - s * .1, cy2 - s * .05, cx + s * .1, cy2 - s * .24); ctx.quadraticCurveTo(cx + s * .3, cy2 - s * .1, cx + s * .43, cy2 - s * .14); ctx.closePath(); ctx.fill(); }
+  // eyes
+  const ey = cy2 + s * .04, e = o.eyes || 'dot', lk = (o.look || 0) * s * .03;
+  for (const k of [-1, 1]) {
+    const ex = cx + k * s * .15;
+    if (o.sick) { ctx.fillStyle = 'rgba(40,30,34,0.55)'; ell(ctx, ex, ey + s * .01, s * .095, s * .075); ctx.fill(); }
+    if (e === 'red') {
+      ctx.fillStyle = '#e9d2cc'; ell(ctx, ex, ey, s * .065, s * .045); ctx.fill();
+      glow(ctx, ex + lk, ey, s * .16, 'rgba(255,40,30,1)', .55 * (o.glowK ?? 1));
+      ctx.fillStyle = '#d8231c'; ell(ctx, ex + lk, ey, s * .038, s * .038); ctx.fill();
+      ctx.fillStyle = '#5a0606'; ell(ctx, ex + lk, ey, s * .017, s * .017); ctx.fill();
+    } else if (e === 'closed' || e === 'down') {
+      ctx.strokeStyle = PAL.ink; ctx.lineWidth = s * .018; ctx.beginPath(); ctx.moveTo(ex - s * .05, ey + (e === 'down' ? s * .015 : 0)); ctx.quadraticCurveTo(ex, ey + s * .03, ex + s * .05, ey + (e === 'down' ? s * .015 : 0)); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#f2eee6'; ell(ctx, ex, ey, s * .06, s * (e === 'wide' ? .05 : .04)); ctx.fill();
+      ctx.fillStyle = PAL.ink; ell(ctx, ex + lk, ey, s * .028, s * .03); ctx.fill();
+      ctx.fillStyle = '#fff'; ell(ctx, ex + lk - s * .01, ey - s * .01, s * .008, s * .008); ctx.fill();
+    }
+    ctx.strokeStyle = shade(L.hair, .1); ctx.lineWidth = s * .02; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ex - s * .07, ey - s * .08 - (o.brow || 0) * s * .03 * k); ctx.lineTo(ex + s * .06, ey - s * .085 + (o.brow || 0) * s * .03 * k); ctx.stroke();
+  }
+  // nose and mouth
+  ctx.fillStyle = shade(sk, -.18); poly(ctx, [[cx - s * .01, cy2 + s * .07], [cx + s * .05, cy2 + s * .2], [cx - s * .04, cy2 + s * .21]]); ctx.fill();
+  const m = clamp(o.mouth || 0);
+  if (o.teeth) {
+    const mw = s * .17, mh = s * (.03 + .09 * m), my = cy2 + s * .33;
+    ctx.fillStyle = '#1a0607'; ell(ctx, cx, my, mw, mh); ctx.fill();
+    ctx.save(); ell(ctx, cx, my, mw, mh); ctx.clip(); ctx.fillStyle = '#ece6d6';
+    for (let k = 0; k < 9; k++) { const x = cx - mw + k * mw * 2 / 9; poly(ctx, [[x, my - mh], [x + mw * 2 / 9, my - mh], [x + mw / 9, my - mh * .35]]); ctx.fill(); poly(ctx, [[x, my + mh], [x + mw * 2 / 9, my + mh], [x + mw / 9, my + mh * .4]]); ctx.fill(); }
+    ctx.restore();
+  } else { ctx.fillStyle = '#3a1416'; ell(ctx, cx, cy2 + s * .32, s * .09, s * (.012 + .05 * m)); ctx.fill(); }
+  if (L.blood) {
+    ctx.save(); ell(ctx, cx, cy2, s * .4, s * .5); ctx.clip(); ctx.fillStyle = PAL.blood;
+    rrect(ctx, cx - s * .27, cy2 - s * .3, s * .07, s * .55, s * .035); ctx.fill();
+    rrect(ctx, cx - s * .17, cy2 - s * .36, s * .05, s * .3, s * .025); ctx.fill();
+    rrect(ctx, cx + s * .2, cy2 + s * .1, s * .06, s * .34, s * .03); ctx.fill();
+    rrect(ctx, cx - s * .1, cy2 + s * .33, s * .05, s * .22, s * .025); ctx.fill();
+    rrect(ctx, cx + s * .03, cy2 + s * .34, s * .04, s * .16, s * .02); ctx.fill();
+    ctx.fillStyle = PAL.bloodD; ell(ctx, cx - s * .2, cy2 - s * .33, s * .1, s * .05); ctx.fill();
+    ctx.restore();
+  }
+}
