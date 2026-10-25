@@ -7,16 +7,16 @@ const fs = require('fs');
 const path = require('path');
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const [k, ...v] = a.replace(/^--/, '').split('='); return [k, v.join('=')]; }));
-const FPS = +(args.fps || 24);
+const FPS = +(args.fps || 24), FW = +(args.w || 1920), FH = +(args.h || 1080);
 const shots = args.shots.split(',').map(f => 'file://' + path.resolve(f)).join(',');
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: FW, height: FH }, deviceScaleFactor: 1 });
   let failed = false;
   page.on('console', m => console.error('[page]', m.text()));
   page.on('pageerror', e => { console.error('[pageerror]', e.message); failed = true; });
-  await page.goto('file://' + path.join(__dirname, 'player.html') + '?shots=' + encodeURIComponent(shots));
+  await page.goto('file://' + path.join(__dirname, 'player.html') + `?w=${FW}&h=${FH}&shots=` + encodeURIComponent(shots));
   await page.evaluate(() => window.ready);
   if (failed) process.exit(1);
 

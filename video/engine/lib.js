@@ -1,7 +1,8 @@
 // Drawing helpers shared by all episodes. Everything is deterministic:
 // a frame depends only on its time, so frames can be rendered in any order.
 'use strict';
-const W = 1920, H = 1080;
+// Frame size; the player overrides it for vertical episodes.
+let W = 1920, H = 1080;
 
 function rng(seed) {
   let a = seed | 0;
@@ -299,4 +300,36 @@ function sil(ctx, fill, draw, shadow) {
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (shadow) { ctx.shadowColor = shadow[0]; ctx.shadowBlur = shadow[1]; }
   ctx.drawImage(c, 0, 0); ctx.restore();
+}
+
+// Brightened, warmer copy of a dark environment: what a torch reveals.
+function litOf(name, c, k = 3.2, warm = '#ffe7c8') {
+  return env(name + '_lit', () => {
+    const o = mk(c.width, c.height), x = o.getContext('2d');
+    x.filter = `brightness(${k}) saturate(1.15)`; x.drawImage(c, 0, 0); x.filter = 'none';
+    if (warm) { x.globalCompositeOperation = 'multiply'; x.fillStyle = warm; x.fillRect(0, 0, o.width, o.height); }
+    return o;
+  });
+}
+
+// Paint (in world coords, under the current camera) as lit by a torch spot at world (sx, sy) radius r.
+function torchLit(ctx, paint, sx, sy, r, a = 1) {
+  const [c, x] = scratch('lit', W, H), m = ctx.getTransform(), p = m.transformPoint(new DOMPoint(sx, sy)), rr = r * Math.hypot(m.a, m.b);
+  x.setTransform(m); paint(x);
+  x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'destination-in';
+  const g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(.45, `rgba(0,0,0,${a * .8})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(c, 0, 0); ctx.restore();
+}
+
+// Walk cycle pose for figure(); phase in radians, face ±1, amount 0..1.
+function walkPose(ph, face = 1, amt = 1, extra = {}) {
+  const s = Math.sin(ph), c = Math.cos(ph);
+  return Object.assign({
+    legL: [.42 * s * face * amt, -.6 * Math.max(0, -c) * face * amt - .05 * face],
+    legR: [-.42 * s * face * amt, -.6 * Math.max(0, c) * face * amt - .05 * face],
+    armL: [-.32 * s * face * amt, .25 * face], armR: [.32 * s * face * amt, .25 * face],
+    dx: 0, breathe: 0,
+  }, extra);
 }

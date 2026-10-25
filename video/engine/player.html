@@ -8,10 +8,13 @@
 <canvas id="c" width="1920" height="1080"></canvas>
 <script src="lib.js"></script>
 <script>
-// Shot files register themselves in SHOTS: { t0, t1, fadeIn?, fadeOut?, draw(ctx, localT, duration, globalT) }.
+// Shot files register themselves in SHOTS: { t0, t1?, fadeIn?, fadeOut?, xfade?, draw(ctx, localT, duration, globalT) }.
+// A shot without t1 lasts until the next one starts. OVERLAY(ctx, t), if defined, draws on top of every frame.
 const SHOTS = [];
+const Q = new URLSearchParams(location.search);
 const cv = document.getElementById('c'), ctx = cv.getContext('2d', { alpha: false });
-const files = new URLSearchParams(location.search).get('shots').split(',');
+W = +(Q.get('w') || 1920); H = +(Q.get('h') || 1080); cv.width = W; cv.height = H;
+const files = Q.get('shots').split(',');
 window.ready = (async () => {
   await document.fonts.load('600 40px Inter');
   for (const f of files) await new Promise((res, rej) => {
@@ -19,19 +22,33 @@ window.ready = (async () => {
     document.body.appendChild(s);
   });
   SHOTS.sort((a, b) => a.t0 - b.t0);
+  SHOTS.forEach((s, i) => { if (s.t1 == null) s.t1 = i + 1 < SHOTS.length ? SHOTS[i + 1].t0 : (window.END || 1e9); });
 })();
+
+function drawShot(c, s, t) {
+  c.save(); s.draw(c, t - s.t0, s.t1 - s.t0, t); c.restore();
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
+}
 
 window.renderAt = t => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  const s = SHOTS.find(s => t >= s.t0 && t < s.t1);
-  if (!s) return;
-  const lt = t - s.t0, d = s.t1 - s.t0;
-  ctx.save(); s.draw(ctx, lt, d, t); ctx.restore();
+  const i = SHOTS.findIndex(s => t >= s.t0 && t < s.t1);
+  if (i < 0) { if (window.OVERLAY) OVERLAY(ctx, t); return; }
+  const s = SHOTS[i], lt = t - s.t0, d = s.t1 - s.t0;
+  drawShot(ctx, s, t);
+  // cross-dissolve from the previous shot
+  const xf = s.xfade ?? (window.XFADE || 0);
+  if (xf && lt < xf && i > 0) {
+    const [c2, x2] = scratch('xfade', W, H);
+    x2.fillStyle = '#000'; x2.fillRect(0, 0, W, H); drawShot(x2, SHOTS[i - 1], t);
+    ctx.save(); ctx.globalAlpha = 1 - lt / xf; ctx.drawImage(c2, 0, 0); ctx.restore();
+  }
   let k = 0;
   if (s.fadeIn) k = Math.max(k, 1 - lt / s.fadeIn);
   if (s.fadeOut) k = Math.max(k, 1 - (d - lt) / s.fadeOut);
   if (k > 0) screenFill(ctx, '#000', Math.min(1, k));
+  if (window.OVERLAY) OVERLAY(ctx, t);
 };
 window.frameAt = t => { renderAt(t); return cv.toDataURL('image/jpeg', 0.94).slice(23); };
 window.pngAt = t => { renderAt(t); return cv.toDataURL('image/png').slice(22); };
