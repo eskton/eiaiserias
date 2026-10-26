@@ -10,6 +10,7 @@
 <script>
 // Shot files register themselves in SHOTS: { t0, t1?, fadeIn?, fadeOut?, xfade?, draw(ctx, localT, duration, globalT) }.
 // A shot without t1 lasts until the next one starts. OVERLAY(ctx, t), if defined, draws on top of every frame.
+// POST, if an episode sets it, adds a film look under the overlay: { drift, bloom, grain, lift } (amounts, 0 = off).
 const SHOTS = [];
 const Q = new URLSearchParams(location.search);
 const cv = document.getElementById('c'), ctx = cv.getContext('2d', { alpha: false });
@@ -26,7 +27,12 @@ window.ready = (async () => {
 })();
 
 function drawShot(c, s, t) {
-  c.save(); s.draw(c, t - s.t0, s.t1 - s.t0, t); c.restore();
+  c.save();
+  // a breathing camera: slow drift and roll, slightly zoomed in so the edges never show
+  const dr = window.POST && POST.drift;
+  if (dr) { c.translate(W / 2, H / 2); c.rotate((noise1(t * .23 + 7) - .5) * .006 * dr); c.scale(1 + .014 * dr, 1 + .014 * dr);
+    c.translate(-W / 2 + (noise1(t * .31) - .5) * 9 * dr, -H / 2 + (noise1(t * .27 + 3) - .5) * 9 * dr); }
+  s.draw(c, t - s.t0, s.t1 - s.t0, t); c.restore();
   c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
 }
 
@@ -60,9 +66,29 @@ window.renderAt = t => {
   let k = 0;
   if (s.fadeIn) k = Math.max(k, 1 - lt / s.fadeIn);
   if (s.fadeOut) k = Math.max(k, 1 - (d - lt) / s.fadeOut);
+  if (window.POST) post(ctx, t, POST);
   if (k > 0) screenFill(ctx, '#000', Math.min(1, k));
   if (window.OVERLAY) OVERLAY(ctx, t);
 };
+
+// Film look: bright parts glow, blacks lift to a deep blue, fine grain that changes every frame.
+function post(ctx, t, o) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (o.bloom) {
+    const [c, x] = scratch('bloom', W / 4, H / 4);
+    x.filter = 'brightness(0.55) contrast(4) saturate(1.4) blur(8px)'; x.drawImage(cv, 0, 0, W / 4, H / 4); x.filter = 'none';
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = o.bloom; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(c, 0, 0, W, H); ctx.restore();
+  }
+  if (o.lift) { ctx.save(); ctx.globalCompositeOperation = 'lighten'; ctx.globalAlpha = o.lift; ctx.fillStyle = '#0d1222'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  if (o.grain) {
+    const n = Math.floor(t * 24) % 8, tile = env('grain' + n, () => {
+      const c = mk(256, 256), x = c.getContext('2d'), im = x.createImageData(256, 256), r = rng(100 + n);
+      for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (r() + r() + r() - 1.5) * 120; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+      x.putImageData(im, 0, 0); return c;
+    });
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = o.grain; ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+}
 window.frameAt = t => { renderAt(t); return cv.toDataURL('image/jpeg', 0.94).slice(23); };
 window.pngAt = t => { renderAt(t); return cv.toDataURL('image/png').slice(22); };
 </script>

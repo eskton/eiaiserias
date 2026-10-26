@@ -63,6 +63,9 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   const hip = [p.dx || 0, p.hipY ?? (p.sit === 'front' ? (kid ? -0.24 : -0.3) : p.sit ? -0.27 : -0.46 + crouch * 0.2)];
   const torso = kid ? 0.27 : 0.32;
   const breath = idle ? Math.sin(now * 2.3 + seed) * .004 : 0;
+  // a soft contact shadow keeps the figure on the ground
+  if (!p.noShadow) { const g = ctx.createRadialGradient(x, y, 0, x, y, .2 * h); g.addColorStop(0, 'rgba(0,0,0,0.32)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, .14); ctx.translate(-x, -y); ctx.fillStyle = g; ctx.fillRect(x - .2 * h, y - .2 * h, .4 * h, .4 * h); ctx.restore(); }
   const neck = [hip[0] + Math.sin(lean) * torso, hip[1] - Math.cos(lean) * torso - breath];
   const hr = kid ? 0.105 : 0.085, hd = p.head || [0, 0];
   const head = [neck[0] + Math.sin(lean) * 0.03 + hd[0], neck[1] - hr - 0.012 + hd[1]];

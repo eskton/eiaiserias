@@ -3,6 +3,7 @@
 'use strict';
 var XFADE = .2, END = 192.6;
 window.OVERLAY = (ctx, t) => captions(ctx, t);
+window.POST = { drift: 1, bloom: .45, grain: .1, lift: .3 };
 
 Object.assign(LOOK, {
   anton: { skin: '#dcae8e', hair: '#3a2a1f', top: '#c7d3dc', topD: '#a7b5c0', legs: '#4a5466', shoes: '#2a2b30' },
