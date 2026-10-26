@@ -1,7 +1,8 @@
 """Karaoke captions for the vertical cut: short chunks (≤ 4 words, ≤ 24 letters) with a time per word.
 
-Usage: python3 captions.py <alignment.json> <out.js> <end_seconds>
-Word times are spread over each line by syllable count; key words get a colour while spoken.
+Usage: python3 captions.py <alignment.json> <out.js> <end_seconds> [keywords.txt]
+Word times come from the alignment when it has them (recognised speech), otherwise they are spread
+over each line by syllable count. Key words get a colour while spoken.
 """
 import itertools
 import json
@@ -26,6 +27,13 @@ def syl(w):
 def colour(w):
     k = re.sub(r'[^\wё-]', '', w.lower())
     return 'r' if k in RED else 'y' if k in YELLOW else 'w'
+
+
+def add_keywords(path):
+    # optional file with lines "r word" / "y word" for an episode's own key words
+    for line in open(path, encoding='utf-8'):
+        c, _, w = line.strip().partition(' ')
+        (RED if c == 'r' else YELLOW).add(w.lower())
 
 
 def split_line(words):
@@ -53,20 +61,40 @@ def split_line(words):
 def main():
     lines = json.load(open(sys.argv[1], encoding='utf-8'))['lines']
     out, end = sys.argv[2], float(sys.argv[3])
+    if len(sys.argv) > 4:
+        add_keywords(sys.argv[4])
     chunks = []
     for ln in lines:
         if ln['start'] >= end:
             break
         words = ln['text'].upper().split()
-        wts = [syl(w) + 0.35 for w in words]
-        tot, acc, times = sum(wts), 0.0, []
-        for w in wts:
-            times.append(ln['start'] + (ln['end'] - ln['start']) * acc / tot)
-            acc += w
+        if 'words' in ln:
+            # recognised speech: a real time for every word (dashes get the time of the next word)
+            spoken = [w for w in words if re.sub(r'[^\wё]', '', w)]
+            tm = iter(ln['words'])
+            times, ends, cur = [], [], None
+            for w in words:
+                if re.sub(r'[^\wё]', '', w):
+                    cur = next(tm)
+                    times.append(cur[1]); ends.append(cur[2])
+                else:
+                    times.append(None); ends.append(None)
+            for k in range(len(words) - 1, -1, -1):
+                if times[k] is None:
+                    times[k] = times[k + 1] if k + 1 < len(words) else ln['end']
+                    ends[k] = times[k]
+            assert len(spoken) == len(ln['words']), ln['text']
+        else:
+            wts = [syl(w) + 0.35 for w in words]
+            tot, acc, times = sum(wts), 0.0, []
+            for w in wts:
+                times.append(ln['start'] + (ln['end'] - ln['start']) * acc / tot)
+                acc += w
+            ends = times[1:] + [ln['end']]
         i = 0
         for c in split_line(words):
             ws = [[w, round(times[i + k], 3), colour(w)] for k, w in enumerate(c)]
-            last_end = times[i + len(c)] if i + len(c) < len(times) else ln['end']
+            last_end = ends[i + len(c) - 1]
             chunks.append([ws[0][1] - 0.05, last_end, ws])
             i += len(c)
     caps = []

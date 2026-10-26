@@ -10,6 +10,33 @@ const PAL = {
   white: '#f5f5f3', grey: '#8d939e', ink: '#0c0f16',
 };
 
+// ---------- motion ----------
+
+// Overshooting ease for things that pop into place.
+const outBack = (x, k = 1.7) => { x = clamp(x) - 1; return 1 + (k + 1) * x * x * x + k * x * x; };
+// Value of keyframes [[time, value], ...] at time t; each segment eased with ease (default inout).
+function anim(t, keys, ease = inout) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [a, va] = keys[i], [b, vb] = keys[i + 1];
+    if (t <= b) return lerp(va, vb, (keys[i + 1][2] || ease)((t - a) / (b - a)));
+  }
+  return keys[keys.length - 1][1];
+}
+// Handheld camera: small drifting offset and roll.
+function handheld(ctx, t, amp = 6) {
+  const m = ctx.getTransform();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.translate(W / 2, H / 2); ctx.rotate((noise1(t * .9 + 40) - .5) * .012 * amp / 6);
+  ctx.translate(-W / 2 + (noise1(t * 1.1) - .5) * amp * 2, -H / 2 + (noise1(t * 1.3 + 9) - .5) * amp * 2);
+  ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+}
+const hashStr = s => { let h = 7; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) % 9973; return h; };
+// 1 while the eyes are shut: a blink every 3–5 s, 0.13 s long.
+function blinking(t, seed) {
+  const period = 3 + (seed % 17) / 8, ph = (t + seed * .37) % period;
+  return ph < .13 ? 1 : 0;
+}
+
 // ---------- characters ----------
 
 const LOOK = {
@@ -30,11 +57,13 @@ const LOOK = {
 // props: knife, torch, phone, gun, pack. look: a LOOK entry plus blood, veins.
 function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   const p = pose, L = look, side = p.face || 0, kid = L.child ? 1 : 0;
+  const now = window.NOW || 0, seed = hashStr(L.top + L.skin + (p.seed || '')), idle = p.idle !== false;
   const U = (u, v) => [x + u * h, y + v * h], dir = a => [Math.sin(a), Math.cos(a)];
   const crouch = p.crouch || 0, lean = p.lean || 0;
   const hip = [p.dx || 0, p.hipY ?? (p.sit === 'front' ? (kid ? -0.24 : -0.3) : p.sit ? -0.27 : -0.46 + crouch * 0.2)];
   const torso = kid ? 0.27 : 0.32;
-  const neck = [hip[0] + Math.sin(lean) * torso, hip[1] - Math.cos(lean) * torso];
+  const breath = idle ? Math.sin(now * 2.3 + seed) * .004 : 0;
+  const neck = [hip[0] + Math.sin(lean) * torso, hip[1] - Math.cos(lean) * torso - breath];
   const hr = kid ? 0.105 : 0.085, hd = p.head || [0, 0];
   const head = [neck[0] + Math.sin(lean) * 0.03 + hd[0], neck[1] - hr - 0.012 + hd[1]];
   const sw = side ? 0.08 : 0.112, hw = side ? 0.075 : 0.1;
@@ -57,6 +86,7 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   };
   const armLen = kid ? 0.14 : 0.165;
   const arm = (k, a, col) => {
+    if (k === -1 && p.hideL) return { hand: U(neck[0] - sw * .8, neck[1] + .1), dir: 0 };
     const [as, ae] = a || [0.05 * k, 0];
     const j = [neck[0] + (side ? 0.005 * k : (sw - 0.03) * k), neck[1] + 0.035];
     const d1 = dir(as), el = [j[0] + d1[0] * armLen, j[1] + d1[1] * armLen];
@@ -106,7 +136,9 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   if (!hb) { ctx.beginPath(); ctx.ellipse(hx - side * R * .12, hy - R * .3, R * 1.02, R * .55, 0, 0, Math.PI); ctx.fill(); }
   if (p.back) { ctx.fillStyle = L.hair; ell(ctx, hx, hy - R * .05, R * 1.02, R * (L.bald ? .7 : 1.0)); ctx.fill(); return { head: [hx, hy], R, hands: arms }; }
   // the face
-  const fx = hx + side * R * .38, fy = hy + R * .08, eye = p.eyes || 'dot';
+  const fx = hx + side * R * .38, fy = hy + R * .08;
+  let eye = p.eyes || 'dot';
+  if ((eye === 'dot' || eye === 'wide') && idle && blinking(now, seed)) eye = 'closed';
   const eyeAt = side ? [[fx + side * R * .22, fy]] : [[hx - R * .36, fy], [hx + R * .36, fy]];
   if (!hb) { ctx.fillStyle = L.skin; ctx.beginPath(); ctx.ellipse(hx + side * R * .2, hy + R * .25, R * .82, R * .72, 0, 0, Math.PI * 2); ctx.fill(); }
   for (const [ex, ey] of eyeAt) {
@@ -179,7 +211,7 @@ function floorGlow(ctx, x, y, w, a = 1, col = 'rgba(244,216,158,1)') {
 // ---------- text ----------
 
 const FONT = 'Inter';
-const TXT = { w: '#ffffff', g: 'rgba(255,255,255,0.42)', y: PAL.yellow, r: PAL.red, n: PAL.green };
+const TXT = { w: '#ffffff', g: '#9ea3ad', y: PAL.yellow, r: PAL.red, n: PAL.green };
 
 // Big caption with words lighting up as they are spoken. CAPS comes from captions.js.
 function captions(ctx, t, y = 1245) {
@@ -203,13 +235,17 @@ function captions(ctx, t, y = 1245) {
   const age = t - c[0], pop = outc(age / .14), sc = .94 + .06 * pop;
   ctx.translate(W / 2, y); ctx.scale(sc, sc); ctx.globalAlpha = clamp(age / .08);
   ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
+  ctx.strokeStyle = 'rgba(8,10,16,0.55)'; ctx.lineWidth = 12; ctx.lineJoin = 'round';
   const y0 = -(c.layout.length - 1) * lh / 2;
   c.layout.forEach((row, i) => {
     let x = -row.width / 2;
     for (const [w, ww] of row.r) {
-      const on = t >= w[1];
+      const on = t >= w[1], a = t - w[1], pop = a > 0 && a < .2 ? Math.sin(Math.PI * a / .2) * .16 : 0;
+      const tr = w[2] === 'r' && a > 0 && a < .7 ? 2.5 : 0;
       ctx.fillStyle = on ? (TXT[w[2]] || TXT.w) : TXT.g;
-      ctx.fillText(w[0], x, y0 + i * lh); x += ww + c.space;
+      ctx.save(); ctx.translate(x + ww / 2 + (noise1(t * 40) - .5) * tr * 2, y0 + i * lh + (noise1(t * 37 + 5) - .5) * tr * 2); ctx.scale(1 + pop, 1 + pop);
+      ctx.strokeText(w[0], -ww / 2, 0); ctx.shadowColor = 'transparent'; ctx.fillText(w[0], -ww / 2, 0); ctx.restore();
+      x += ww + c.space;
     }
   });
   ctx.restore();
@@ -224,7 +260,8 @@ function headline(ctx, text, k = 1, col = 'w', y = 300, sub = null, size = 96) {
   const wmax = W - 110, tw = ctx.measureText(text).width;
   if (tw > wmax) { size = Math.floor(size * wmax / tw); ctx.font = `900 ${size}px ${FONT}`; }
   ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 5;
-  ctx.fillStyle = TXT[col] || col; ctx.fillText(text, W / 2, y + (1 - outc(k)) * 14);
+  ctx.fillStyle = TXT[col] || col;
+  const sc = .8 + .2 * outBack(k); ctx.save(); ctx.translate(W / 2, y); ctx.scale(sc, sc); ctx.fillText(text, 0, 0); ctx.restore();
   if (sub) { ctx.font = `700 30px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.letterSpacing = '3px'; ctx.fillText(sub, W / 2, y + size * .72); }
   ctx.restore();
 }
@@ -250,7 +287,10 @@ const appear = (t, a, b = 1e9, f = .18) => clamp((t - a) / f) * (1 - clamp((t - 
 // Head-and-shoulders portrait for close-ups. (cx, cy) is the centre of the face, s the head height.
 // o: eyes ('dot','wide','red','down','closed'), glowK, mouth 0..1, look [-1..1], veins, blood, nod.
 function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
-  const L = look, sk = L.skin, cy2 = cy + (o.nod || 0) * s * .08;
+  const now = window.NOW || 0, seed = hashStr(look.top + look.skin);
+  if (o.idle !== false) { cx += Math.sin(now * .7 + seed) * s * .006; cy += Math.sin(now * 2.2 + seed) * s * .004; }
+  const L = look, sk = L.skin, cy2 = cy + (o.nod || 0) * s * .08 + (o.shake ? Math.sin(now * 30) * s * .004 * o.shake : 0);
+  cx += (o.turn || 0) * s * .05;
   // shoulders and collar
   ctx.fillStyle = L.top; rrect(ctx, cx - s * .98, cy + s * .62, s * 1.96, s * 1.4, s * .42); ctx.fill();
   ctx.fillStyle = L.topD; rrect(ctx, cx + s * .1, cy + s * .62, s * .88, s * 1.4, [0, s * .42, 0, 0]); ctx.fill();
@@ -281,7 +321,9 @@ function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
   ctx.beginPath(); ctx.ellipse(cx, cy2 - s * .14, s * .43, s * (.42 - (L.bald || 0) * .2), 0, Math.PI, 0); ctx.closePath(); ctx.fill();
   if (!L.bald) { ctx.beginPath(); ctx.moveTo(cx - s * .43, cy2 - s * .14); ctx.quadraticCurveTo(cx - s * .1, cy2 - s * .05, cx + s * .1, cy2 - s * .24); ctx.quadraticCurveTo(cx + s * .3, cy2 - s * .1, cx + s * .43, cy2 - s * .14); ctx.closePath(); ctx.fill(); }
   // eyes
-  const ey = cy2 + s * .04, e = o.eyes || 'dot', lk = (o.look || 0) * s * .03;
+  const ey = cy2 + s * .04, lk = (o.look || 0) * s * .03;
+  let e = o.eyes || 'dot';
+  if ((e === 'dot' || e === 'wide') && o.idle !== false && blinking(now, seed)) e = 'closed';
   for (const k of [-1, 1]) {
     const ex = cx + k * s * .15;
     if (o.sick) { ctx.fillStyle = 'rgba(40,30,34,0.55)'; ell(ctx, ex, ey + s * .01, s * .095, s * .075); ctx.fill(); }
@@ -309,7 +351,11 @@ function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
     ctx.save(); ell(ctx, cx, my, mw, mh); ctx.clip(); ctx.fillStyle = '#ece6d6';
     for (let k = 0; k < 9; k++) { const x = cx - mw + k * mw * 2 / 9; poly(ctx, [[x, my - mh], [x + mw * 2 / 9, my - mh], [x + mw / 9, my - mh * .35]]); ctx.fill(); poly(ctx, [[x, my + mh], [x + mw * 2 / 9, my + mh], [x + mw / 9, my + mh * .4]]); ctx.fill(); }
     ctx.restore();
+  } else if (o.smile) {
+    ctx.strokeStyle = '#3a1416'; ctx.lineWidth = s * .016; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - s * .1 * (1 + o.smile * .5), cy2 + s * .3); ctx.quadraticCurveTo(cx, cy2 + s * (.33 + .05 * o.smile), cx + s * .1 * (1 + o.smile * .5), cy2 + s * .3); ctx.stroke();
   } else { ctx.fillStyle = '#3a1416'; ell(ctx, cx, cy2 + s * .32, s * .09, s * (.012 + .05 * m)); ctx.fill(); }
+  if (o.tears) { ctx.fillStyle = 'rgba(190,220,255,0.7)'; for (const k of [-1, 1]) { const ph = ((now * .6 + (k + 1) * .3) % 1); ell(ctx, cx + k * s * .15, cy2 + s * (.1 + ph * .25), s * .012, s * .02); ctx.fill(); } }
   if (L.blood) {
     ctx.save(); ell(ctx, cx, cy2, s * .4, s * .5); ctx.clip(); ctx.fillStyle = PAL.blood;
     rrect(ctx, cx - s * .27, cy2 - s * .3, s * .07, s * .55, s * .035); ctx.fill();

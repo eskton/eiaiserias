@@ -100,7 +100,7 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.tmp, exist_ok=True)
     write_timing()
-    subprocess.run([sys.executable, os.path.join(FLAT, 'captions.py'), ALIGNMENT, os.path.join(FLAT, 'captions.js'), str(min(a.end, VOICE_END))], check=True)
+    subprocess.run([sys.executable, os.path.join(VIDEO, 'engine/captions.py'), ALIGNMENT, os.path.join(FLAT, 'captions.js'), str(min(a.end, VOICE_END))], check=True)
     frames = int(round(a.end * FPS))
     n = a.workers * 2
     cuts = [frames * i // n for i in range(n + 1)]

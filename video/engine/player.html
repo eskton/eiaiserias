@@ -36,13 +36,26 @@ window.renderAt = t => {
   const i = SHOTS.findIndex(s => t >= s.t0 && t < s.t1);
   if (i < 0) { if (window.OVERLAY) OVERLAY(ctx, t); return; }
   const s = SHOTS[i], lt = t - s.t0, d = s.t1 - s.t0;
+  window.NOW = t;
   drawShot(ctx, s, t);
-  // cross-dissolve from the previous shot
-  const xf = s.xfade ?? (window.XFADE || 0);
+  // transition from the previous shot: fade (cross-dissolve), whip (fast slide), flash, zoom, cut
+  const tr = s.trans || window.TRANS || 'fade', xf = tr === 'cut' ? 0 : s.xfade ?? (tr === 'fade' ? window.XFADE || 0 : .28);
   if (xf && lt < xf && i > 0) {
-    const [c2, x2] = scratch('xfade', W, H);
-    x2.fillStyle = '#000'; x2.fillRect(0, 0, W, H); drawShot(x2, SHOTS[i - 1], t);
-    ctx.save(); ctx.globalAlpha = 1 - lt / xf; ctx.drawImage(c2, 0, 0); ctx.restore();
+    const u = lt / xf, [c2, x2] = scratch('xfade', W, H);
+    if (tr !== 'flash') { x2.fillStyle = '#000'; x2.fillRect(0, 0, W, H); drawShot(x2, SHOTS[i - 1], t); }
+    if (tr === 'fade') { ctx.save(); ctx.globalAlpha = 1 - u; ctx.drawImage(c2, 0, 0); ctx.restore(); }
+    else if (tr === 'whip') {
+      const [c3, x3] = scratch('whip', W, H), e = inout(u);
+      x3.drawImage(cv, 0, 0);
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      for (const k of [0, .04, .08]) {
+        ctx.globalAlpha = k ? .25 : 1;
+        ctx.drawImage(c2, -e * W - k * W * Math.sin(Math.PI * u), 0); ctx.drawImage(c3, (1 - e) * W - k * W * Math.sin(Math.PI * u), 0);
+      }
+      ctx.globalAlpha = 1;
+    } else if (tr === 'zoom') {
+      ctx.save(); ctx.globalAlpha = 1 - u; ctx.translate(W / 2, H / 2); ctx.scale(1 + .6 * u * u, 1 + .6 * u * u); ctx.drawImage(c2, -W / 2, -H / 2); ctx.restore();
+    } else if (tr === 'flash') screenFill(ctx, '#fff', 1 - u);
   }
   let k = 0;
   if (s.fadeIn) k = Math.max(k, 1 - lt / s.fadeIn);
