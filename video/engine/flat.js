@@ -125,7 +125,13 @@ function toon(ctx, x, y, h, pose = {}, look = LOOK.hero) {
   // neck and head
   ctx.fillStyle = shade(L.skin, -.12); ctx.fillRect(...U(neck[0] - 0.025, neck[1] - 0.03), 0.05 * h, 0.05 * h);
   const [hx, hy] = U(...head), R = hr * h;
-  if (L.long) { ctx.fillStyle = L.hair; rrect(ctx, hx - R * 1.08, hy - R * .6, R * 2.16, R * 2.5, R * .9); ctx.fill(); }
+  // long hair falls down the back, or at the sides of the face (never under the chin)
+  if (L.long) {
+    ctx.fillStyle = L.hair;
+    if (p.back) { rrect(ctx, hx - R * 1.08, hy - R * .6, R * 2.16, R * 2.5, R * .9); ctx.fill(); }
+    else if (side) { rrect(ctx, side > 0 ? hx - R * 1.1 : hx + R * .2, hy - R * .6, R * .9, R * 2.3, R * .4); ctx.fill(); }
+    else for (const k of [-1, 1]) { rrect(ctx, k < 0 ? hx - R * 1.1 : hx + R * .38, hy - R * .6, R * .72, R * 2.3, R * .35); ctx.fill(); }
+  }
   ctx.fillStyle = L.skin; ell(ctx, hx, hy, R, R * 1.05); ctx.fill();
   ctx.save(); ell(ctx, hx, hy, R, R * 1.05); ctx.clip(); ctx.fillStyle = shade(L.skin, -.1);
   ctx.fillRect(hx + (side ? -side * R * .55 : R * .45), hy - R * 1.2, R * 2, R * 2.4); ctx.restore();
@@ -305,7 +311,10 @@ function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
     };
     vein(cx - s * .08, cy2 + s * .75, -.15, s * .16, s * .028, 3); vein(cx + s * .1, cy2 + s * .75, .2, s * .15, s * .026, 3);
   }
-  if (L.long) { ctx.fillStyle = L.hair; rrect(ctx, cx - s * .5, cy2 - s * .5, s, s * 1.15, s * .4); ctx.fill(); }
+  if (L.long) {
+    ctx.fillStyle = L.hair; rrect(ctx, cx - s * .5, cy2 - s * .5, s, s * .85, s * .4); ctx.fill();
+    for (const k of [-1, 1]) { rrect(ctx, k < 0 ? cx - s * .53 : cx + s * .29, cy2 - s * .2, s * .24, s * 1.0, s * .1); ctx.fill(); }
+  }
   // head
   ctx.fillStyle = sk; ell(ctx, cx, cy2, s * .4, s * .5); ctx.fill();
   ctx.save(); ell(ctx, cx, cy2, s * .4, s * .5); ctx.clip();

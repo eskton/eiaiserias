@@ -40,9 +40,9 @@ def write_timing(alignment, voice, out):
                 'const VENV = [' + ','.join(f'{a:.2f}'.rstrip('0').rstrip('.') or '0' for a in v) + '];\n'
                 'const MOUTH = t => { const k = t * 50, i = Math.floor(k); return i < 0 || i + 1 >= VENV.length ? 0 : VENV[i] + (VENV[i + 1] - VENV[i]) * (k - i); };\n')
         if all('words' in l for l in lines):
-            # WORDS[n] = [[word, start, end], ...]; Wd(n, prefix) = start of the first word of line n beginning with prefix
+            # WORDS[n] = [[word, start, end], ...]; Wd(n, prefix, k) = start of the k-th (first by default) word of line n beginning with prefix
             f.write('const WORDS = [null,\n' + ',\n'.join('  ' + json.dumps(l['words'], ensure_ascii=False) for l in lines) + '\n];\n'
-                    "const Wd = (n, p) => { const w = WORDS[n].find(w => w[0].toLowerCase().replace(/[^а-яё0-9-]/g, '').startsWith(p)); return w ? w[1] : S(n); };\n")
+                    "const Wd = (n, p, k = 0) => { const w = WORDS[n].filter(w => w[0].toLowerCase().replace(/[^а-яё0-9-]/g, '').startsWith(p))[k]; return w ? w[1] : S(n); };\n")
 
 
 def main():
