@@ -87,7 +87,7 @@ def main():
     subprocess.run([sys.executable, os.path.join(ep, 'sound.py'), voice, wav, str(end)], check=True)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', raw, '-ss', f'{a.t0:.3f}', '-t', f'{t1 - a.t0:.3f}', '-i', wav,
                     '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000',
-                    '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p',
+                    '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-maxrate', '2.6M', '-bufsize', '5.2M', '-pix_fmt', 'yuv420p',
                     '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-shortest', a.out], check=True)
     print(a.out)
 
