@@ -1,7 +1,1 @@
-{
-  "voice": "audio/ep02/ep02_voiceover.mp3",
-  "alignment": "audio/ep02/alignment.json",
-  "keywords": "audio/ep02/keywords.txt",
-  "voice_end": 189.1,
-  "end": 192.6
-}
+{"voice": "audio/ep02/ep02_voiceover.mp3", "alignment": "audio/ep02/alignment.json", "keywords": "audio/ep02/keywords.txt", "voice_end": 189.1, "end": 192.6, "libs": ["video/island/art.js"]}

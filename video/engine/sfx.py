@@ -418,6 +418,30 @@ def insects(dur, seed=0):
     return out
 
 
+def fire(dur, seed=0):
+    """A campfire: a low roar and crackles."""
+    t = secs(dur)
+    rng = np.random.default_rng(seed)
+    x = band(noise(dur, seed), 80, 400) * (0.6 + 0.4 * np.abs(band(noise(dur, seed + 1), hi=2, order=2)) / 0.02)
+    for k in range(int(dur * 14)):
+        i = int(rng.random() * (len(t) - 2400))
+        n = int((0.004 + rng.random() * 0.03) * SR)
+        x[i:i + n] += band(rng.standard_normal(n), 1000, 6000) * np.exp(-np.arange(n) / (n / 4)) * (0.5 + rng.random() * 2)
+    return x
+
+
+def gull(seed=0):
+    """A gull's cry far off."""
+    out = np.zeros(int(1.4 * SR))
+    for k, d in enumerate([0.0, 0.42, 0.78]):
+        t = secs(0.32)
+        f = 1500 - 700 * t / 0.32 + 60 * np.sin(2 * np.pi * 28 * t)
+        c = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / 0.32) ** 1.5
+        i = int(d * SR)
+        out[i:i + len(c)] += band(c, 800, 4000) * (1 - k * 0.2)
+    return reverb(norm(out), 1.2, 0.5, seed)
+
+
 def default_beds():
     return [lambda d: room(d, 1), lambda d: wind(d, 2), lambda d: drone(d, 3), lambda d: shimmer(d, 4)]
 

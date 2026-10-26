@@ -1,8 +1,8 @@
 """Build an episode of the vertical flat cut: line timings, captions, frames, soundtrack, final mp4.
 
 Usage: python3 build.py <episode_dir> <out.mp4> [--from SECONDS] [--to SECONDS] [--workers N] [--tmp DIR]
-<episode_dir>/episode.json: {"voice": ..., "alignment": ..., "end": ..., "voice_end": ..., "keywords": ...}
-(paths relative to the repository). Shot files are <episode_dir>/scene*.js; the soundtrack comes from
+<episode_dir>/episode.json: {"voice": ..., "alignment": ..., "end": ..., "voice_end": ..., "keywords": ..., "libs": [...]}
+(paths relative to the repository; libs are shared drawing files loaded before the scenes). Shot files are <episode_dir>/scene*.js; the soundtrack comes from
 <episode_dir>/sound.py, called as: sound.py <voice> <out.wav> <end>.
 """
 import argparse
@@ -66,7 +66,7 @@ def main():
         cap.append(os.path.join(REPO, cfg['keywords']))
     subprocess.run(cap, check=True)
     shots = [os.path.join(ENGINE, 'flat.js'), os.path.join(ep, 'timing.js'), os.path.join(ep, 'captions.js')] + \
-        sorted(glob.glob(os.path.join(ep, 'scene*.js')))
+        [os.path.join(REPO, x) for x in cfg.get('libs', [])] + sorted(glob.glob(os.path.join(ep, 'scene*.js')))
     f0, f1 = int(round(a.t0 * FPS)), int(round(t1 * FPS))
     n = a.workers * 2
     cuts = [f0 + (f1 - f0) * i // n for i in range(n + 1)]

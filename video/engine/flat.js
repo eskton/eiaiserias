@@ -338,7 +338,7 @@ function portrait(ctx, cx, cy, s, o = {}, look = LOOK.hero) {
   if ((e === 'dot' || e === 'wide') && o.idle !== false && blinking(now, seed)) e = 'closed';
   for (const k of [-1, 1]) {
     const ex = cx + k * s * .15;
-    if (o.sick) { ctx.fillStyle = 'rgba(40,30,34,0.55)'; ell(ctx, ex, ey + s * .01, s * .095, s * .075); ctx.fill(); }
+    if (o.sick) { ctx.fillStyle = `rgba(40,30,34,${.55 * Math.min(1, o.sick)})`; ell(ctx, ex, ey + s * .01, s * .095, s * .075); ctx.fill(); }
     if (e === 'red') {
       ctx.fillStyle = '#e9d2cc'; ell(ctx, ex, ey, s * .065, s * .045); ctx.fill();
       glow(ctx, ex + lk, ey, s * .16, 'rgba(255,40,30,1)', .55 * (o.glowK ?? 1));
