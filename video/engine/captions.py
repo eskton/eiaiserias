@@ -1,9 +1,11 @@
 """Karaoke captions for the vertical cut: short chunks (≤ 4 words, ≤ 24 letters) with a time per word.
 
-Usage: python3 captions.py <alignment.json> <out.js> <end_seconds> [keywords.txt]
+Usage: python3 captions.py <alignment.json> <out.js> <end_seconds> [keywords.txt] [--max-chars N] [--max-words N]
 Word times come from the alignment when it has them (recognised speech), otherwise they are spread
-over each line by syllable count. Key words get a colour while spoken.
+over each line by syllable count. Key words get a colour while spoken: keywords.txt lines are
+"r word" (red), "y word" (yellow) or "g word" (green).
 """
+import argparse
 import itertools
 import json
 import re
@@ -14,6 +16,7 @@ RED = {'убил', 'кровь', 'кровью', 'заразился', 'зара
        'красными', 'чёрные', 'вены', 'оружие', 'нападал', 'превратился', 'забывают', 'ударил'}
 YELLOW = {'сосед', 'шесть', 'двенадцать', 'семь', 'двадцать', 'телефон', 'сообщение', 'илья', 'илью', 'вера', 'веру',
           'живые', 'живыми', 'помнящими', 'лаборатория', 'мальчик', 'люди', 'фонарь', 'фонарик', 'нож', 'первых'}
+GREEN = set()
 MAX_CHARS, MAX_WORDS = 24, 5
 # a caption should not end on one of these
 WEAK = {'в', 'на', 'к', 'с', 'у', 'о', 'по', 'за', 'до', 'из', 'от', 'не', 'и', 'а', 'но', 'он', 'она', 'я', 'мы', 'ты', 'как',
@@ -26,14 +29,14 @@ def syl(w):
 
 def colour(w):
     k = re.sub(r'[^\wё-]', '', w.lower())
-    return 'r' if k in RED else 'y' if k in YELLOW else 'w'
+    return 'r' if k in RED else 'y' if k in YELLOW else 'n' if k in GREEN else 'w'
 
 
 def add_keywords(path):
-    # optional file with lines "r word" / "y word" for an episode's own key words
+    # optional file with lines "r word" / "y word" / "g word" for an episode's own key words
     for line in open(path, encoding='utf-8'):
         c, _, w = line.strip().partition(' ')
-        (RED if c == 'r' else YELLOW).add(w.lower())
+        {'r': RED, 'g': GREEN}.get(c, YELLOW).add(w.lower())
 
 
 def split_line(words):
@@ -59,10 +62,20 @@ def split_line(words):
 
 
 def main():
-    lines = json.load(open(sys.argv[1], encoding='utf-8'))['lines']
-    out, end = sys.argv[2], float(sys.argv[3])
-    if len(sys.argv) > 4:
-        add_keywords(sys.argv[4])
+    global MAX_CHARS, MAX_WORDS
+    ap = argparse.ArgumentParser()
+    ap.add_argument('alignment')
+    ap.add_argument('out')
+    ap.add_argument('end', type=float)
+    ap.add_argument('keywords', nargs='?')
+    ap.add_argument('--max-chars', type=int, default=MAX_CHARS)
+    ap.add_argument('--max-words', type=int, default=MAX_WORDS)
+    a = ap.parse_args()
+    MAX_CHARS, MAX_WORDS = a.max_chars, a.max_words
+    lines = json.load(open(a.alignment, encoding='utf-8'))['lines']
+    out, end = a.out, a.end
+    if a.keywords:
+        add_keywords(a.keywords)
     chunks = []
     for ln in lines:
         if ln['start'] >= end:

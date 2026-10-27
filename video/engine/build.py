@@ -1,8 +1,9 @@
 """Build an episode of the vertical flat cut: line timings, captions, frames, soundtrack, final mp4.
 
 Usage: python3 build.py <episode_dir> <out.mp4> [--from SECONDS] [--to SECONDS] [--workers N] [--tmp DIR]
-<episode_dir>/episode.json: {"voice": ..., "alignment": ..., "end": ..., "voice_end": ..., "keywords": ..., "libs": [...]}
-(paths relative to the repository; libs are shared drawing files loaded before the scenes). Shot files are <episode_dir>/scene*.js; the soundtrack comes from
+<episode_dir>/episode.json: {"voice": ..., "alignment": ..., "end": ..., "voice_end": ..., "keywords": ..., "libs": [...],
+"captions": {"max_chars": ..., "max_words": ...}} (paths relative to the repository; libs are shared drawing files
+loaded before the scenes; captions sets how long the caption chunks may be). Shot files are <episode_dir>/scene*.js; the soundtrack comes from
 <episode_dir>/sound.py, called as: sound.py <voice> <out.wav> <end>.
 """
 import argparse
@@ -64,6 +65,8 @@ def main():
     cap = [sys.executable, os.path.join(ENGINE, 'captions.py'), alignment, os.path.join(ep, 'captions.js'), str(voice_end)]
     if cfg.get('keywords'):
         cap.append(os.path.join(REPO, cfg['keywords']))
+    for k, v in cfg.get('captions', {}).items():  # e.g. {"max_chars": 16, "max_words": 3}
+        cap += ['--' + k.replace('_', '-'), str(v)]
     subprocess.run(cap, check=True)
     shots = [os.path.join(ENGINE, 'flat.js'), os.path.join(ep, 'timing.js'), os.path.join(ep, 'captions.js')] + \
         [os.path.join(REPO, x) for x in cfg.get('libs', [])] + sorted(glob.glob(os.path.join(ep, 'scene*.js')))

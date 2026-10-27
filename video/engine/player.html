@@ -10,7 +10,7 @@
 <script>
 // Shot files register themselves in SHOTS: { t0, t1?, fadeIn?, fadeOut?, xfade?, draw(ctx, localT, duration, globalT) }.
 // A shot without t1 lasts until the next one starts. OVERLAY(ctx, t), if defined, draws on top of every frame.
-// POST, if an episode sets it, adds a film look under the overlay: { drift, bloom, grain, lift } (amounts, 0 = off).
+// POST, if an episode sets it, adds a film look under the overlay: { drift, bloom, grain, lift, paper } (amounts, 0 = off).
 const SHOTS = [];
 const Q = new URLSearchParams(location.search);
 const cv = document.getElementById('c'), ctx = cv.getContext('2d', { alpha: false });
@@ -22,6 +22,7 @@ window.ready = (async () => {
     const s = document.createElement('script'); s.src = f; s.onload = res; s.onerror = () => rej(new Error('cannot load ' + f));
     document.body.appendChild(s);
   });
+  await Promise.all(window.LOADING || []);  // fonts and images a style file started loading
   SHOTS.sort((a, b) => a.t0 - b.t0);
   SHOTS.forEach((s, i) => { if (s.t1 == null) s.t1 = i + 1 < SHOTS.length ? SHOTS[i + 1].t0 : (window.END || 1e9); });
 })();
@@ -80,6 +81,17 @@ function post(ctx, t, o) {
     ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = o.bloom; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(c, 0, 0, W, H); ctx.restore();
   }
   if (o.lift) { ctx.save(); ctx.globalCompositeOperation = 'lighten'; ctx.globalAlpha = o.lift; ctx.fillStyle = '#0d1222'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  if (o.paper) {
+    // a still, printed-paper texture: blotches and fibres that do not move
+    const tile = env('paper', () => {
+      const c = mk(512, 512), x = c.getContext('2d'), im = x.createImageData(512, 512), r = rng(7);
+      for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (r() - .5) * 70; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+      x.putImageData(im, 0, 0);
+      for (let k = 0; k < 140; k++) { x.fillStyle = r() < .5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'; x.beginPath(); x.ellipse(r() * 512, r() * 512, 20 + r() * 70, 10 + r() * 40, r() * 3, 0, Math.PI * 2); x.fill(); }
+      return c;
+    });
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = o.paper; ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
   if (o.grain) {
     const n = Math.floor(t * 24) % 8, tile = env('grain' + n, () => {
       const c = mk(256, 256), x = c.getContext('2d'), im = x.createImageData(256, 256), r = rng(100 + n);

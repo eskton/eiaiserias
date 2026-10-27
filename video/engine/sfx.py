@@ -442,6 +442,133 @@ def gull(seed=0):
     return reverb(norm(out), 1.2, 0.5, seed)
 
 
+def lift_hum(dur, seed=0):
+    """A lift machine room: mains hum and a fan."""
+    t = secs(dur)
+    x = sum(a * np.sin(2 * np.pi * f * t) for f, a in [(50, 1), (100, .6), (150, .25), (200, .12)])
+    x = x * (0.85 + 0.15 * np.sin(2 * np.pi * 0.3 * t)) + band(noise(dur, seed), 200, 900) * 0.8
+    return x
+
+
+def pulse_music(dur, bpm=96, seed=0):
+    """A dark pulse to sit under a voice: sub bass in eighths over a minor progression, a soft kick, hats, a pad."""
+    t = secs(dur)
+    beat = 60 / bpm
+    out = np.zeros_like(t)
+    roots = [55.0, 43.65, 65.41, 49.0]  # A, F, C, G (two bars each)
+    bar = 4 * beat
+    for i in range(int(dur / (beat / 2)) + 1):
+        t0 = i * beat / 2
+        f = roots[int(t0 / (2 * bar)) % 4]
+        n = int(min(beat / 2, dur - t0) * SR)
+        if n <= 0:
+            break
+        tt = np.arange(n) / SR
+        note = (np.sin(2 * np.pi * f * tt) + 0.3 * np.sin(2 * np.pi * 2 * f * tt)) * np.exp(-tt * 7) * (1 if i % 2 == 0 else 0.7)
+        a = int(t0 * SR)
+        out[a:a + n] += note
+    for i in range(int(dur / beat) + 1):
+        a = int(i * beat * SR)
+        if i % 2 == 0:
+            n = min(int(0.3 * SR), len(out) - a)
+            if n > 0:
+                tt = np.arange(n) / SR
+                out[a:a + n] += 0.9 * np.sin(2 * np.pi * np.cumsum(45 + 80 * np.exp(-tt * 30)) / SR) * np.exp(-tt * 10)
+        h = int((i + .5) * beat * SR)
+        if h + 1200 < len(out):
+            out[h:h + 1200] += band(np.random.default_rng(seed + i).standard_normal(1200), 7000) * np.exp(-np.arange(1200) / 200) * 0.12
+    chord = np.zeros_like(t)
+    for k, (f1, f2, f3) in enumerate([(220, 261.6, 329.6), (174.6, 220, 261.6), (196, 261.6, 329.6), (196, 246.9, 293.7)]):
+        a, b = int(k * 2 * bar * SR), int((k + 1) * 2 * bar * SR)
+        seg = np.arange(len(t))
+        m = (seg % int(8 * bar * SR) >= a) & (seg % int(8 * bar * SR) < b)
+        chord += m * sum(signal.sawtooth(2 * np.pi * f * t) for f in (f1, f2, f3))
+    return band(out, hi=900) + 0.12 * band(chord, hi=800) * (0.6 + 0.4 * np.sin(2 * np.pi * t / 7))
+
+
+def motor(dur, seed=0):
+    """The lift moving: a motor whine with a rattle."""
+    t = secs(dur)
+    up = np.clip(t / 0.6, 0, 1) * np.clip((dur - t) / 0.4, 0, 1)
+    x = (np.sin(2 * np.pi * 120 * t) * .5 + np.sin(2 * np.pi * 240 * t) * .2 + band(noise(dur, seed), 300, 1500) * (0.5 + 0.5 * np.abs(np.sin(2 * np.pi * 9 * t))))
+    return norm(x * up)
+
+
+def clunk(seed=0):
+    """A heavy metal stop: a thud, a ring and a creak of the cables."""
+    t = secs(1.6)
+    ring = sum(np.sin(2 * np.pi * f * t + i) * np.exp(-t * d) for i, (f, d) in enumerate([(310, 5), (520, 7), (870, 9), (1430, 12)]))
+    x = np.zeros_like(t)
+    th = thump(seed)
+    x[:min(len(x), len(th))] += th[:len(x)] * 1.2
+    x += ring * 0.35
+    cr = creak(0.8, seed)
+    i = int(0.25 * SR)
+    x[i:i + len(cr)] += cr[:len(x) - i] * 0.4
+    return reverb(norm(fade(x, 0.002, 0.2)), 0.6, 0.25, seed)
+
+
+def power(seed=0, down=True, dur=1.2):
+    """Power going off (the hum falls away) or coming back on (a click and the hum rising)."""
+    t = secs(dur)
+    f = 100 * (np.exp(-t * 2.5) if down else 1 - np.exp(-t * 6))
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * (np.exp(-t * 2) if down else np.clip(t * 3, 0, 1))
+    k = click(seed, 2000)
+    i = 0 if not down else int(0.05 * SR)
+    x[i:i + len(k)] += k[:len(x) - i] * 1.5
+    return norm(fade(x, 0.002, 0.1))
+
+
+def scream(seed=0, dur=1.1):
+    """Someone screaming far away up the stairs."""
+    t = secs(dur)
+    f0 = 520 + 220 * np.sin(np.pi * np.clip(t / dur, 0, 1)) + 25 * np.sin(2 * np.pi * 6 * t)
+    v = signal.sawtooth(2 * np.pi * np.cumsum(f0) / SR)
+    x = band(v, 700, 1400) + band(v, 2000, 3200) * 0.6 + band(noise(dur, seed), 1000, 4000) * 0.3
+    x *= np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.6
+    return reverb(norm(band(x, hi=3000)), 1.4, 0.5, seed)
+
+
+def meow(seed=0, dur=0.7):
+    t = secs(dur)
+    f0 = 520 + 300 * np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 2
+    v = signal.sawtooth(2 * np.pi * np.cumsum(f0) / SR)
+    x = band(v, 800, 1600) + band(v, 2000, 3500) * 0.5
+    return reverb(norm(fade(x * np.sin(np.pi * t / dur), 0.02, 0.08)), 0.4, 0.2, seed)
+
+
+def hiss(seed=0, dur=1.2):
+    t = secs(dur)
+    x = band(noise(dur, seed), 2500, 9000) * np.clip(t / 0.05, 0, 1) * np.exp(-t * 1.5)
+    return norm(x)
+
+
+def notify(seed=0):
+    out = np.zeros(int(0.6 * SR))
+    for k, (d, f) in enumerate([(0.0, 988), (0.12, 1319)]):
+        t = secs(0.35)
+        c = np.sin(2 * np.pi * f * t) * np.exp(-t * 9)
+        i = int(d * SR)
+        out[i:i + len(c)] += c
+    return reverb(norm(out), 0.5, 0.2, seed)
+
+
+def siren(dur=5.0, seed=0):
+    """A siren far off in the city."""
+    t = secs(dur)
+    f = 700 + 250 * np.sin(2 * np.pi * 0.45 * t)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) + 0.3 * np.sin(2 * np.pi * np.cumsum(2 * f) / SR)
+    return reverb(norm(band(x * np.sin(np.pi * t / dur), 400, 2000)), 2.0, 0.6, seed)
+
+
+def speakerize(x, seed=0):
+    """A voice through a small loudspeaker: thin, a little distorted, with hiss."""
+    y = band(x, 380, 3300, order=6) * 2.2
+    y = np.tanh(y * 1.5) / 1.5
+    y *= 0.8 * np.sqrt(np.mean(x ** 2)) / (np.sqrt(np.mean(y ** 2)) + 1e-9)  # as loud as before, a touch quieter
+    return y + band(noise(len(x) / SR, seed), 2000, 6000) * 0.006
+
+
 def default_beds():
     return [lambda d: room(d, 1), lambda d: wind(d, 2), lambda d: drone(d, 3), lambda d: shimmer(d, 4)]
 
@@ -494,7 +621,7 @@ def mix(voice, end, EVENTS, BEDS, make, beds=None):
 
 
 
-def run(make, EVENTS, BEDS, VOICE_END=None, beds=None):
+def run(make, EVENTS, BEDS, VOICE_END=None, beds=None, voice_fx=None):
     """Command line of an episode's sound.py: <voice.mp3> <out.wav> [end_seconds]."""
     voice_path, out = sys.argv[1], sys.argv[2]
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', voice_path, '-f', 'f32le', '-ac', '1', '-ar', str(SR), '-'],
@@ -508,6 +635,8 @@ def run(make, EVENTS, BEDS, VOICE_END=None, beds=None):
         k = int(0.06 * SR)
         voice[cut - k:cut] *= np.linspace(1, 0, k)
         voice[cut:] = 0
+    if voice_fx:
+        voice = voice_fx(voice)  # e.g. a radio or a loudspeaker sound on some lines
     st = mix(voice, end, EVENTS, BEDS, make, beds)
     with wave.open(out, 'wb') as w:
         w.setnchannels(2)
