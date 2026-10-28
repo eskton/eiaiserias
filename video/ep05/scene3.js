@@ -77,7 +77,7 @@ SHOTS.push(
     doorSection(ctx, t, { rattle: pull * (1 - sstep(hold, hold + .5, t)), who: x => {
       const g2 = guy(x, 120, FEET, 780, zedWalk(t, 4, 1, .25), ZED); redEyes(x, g2, 1, .8);
       const p = { face: 1, eyes: 'zed', seed: 2, lean: .08 - pull * .1 * Math.max(0, Math.sin(t * 15)) };
-      p.armR = guyReach(320, FEET, 820, p, 452, 1112, -1); p.armL = [1.25, -.3];
+      p.armR = guyReach(320, FEET, 820, p, 452, 1112, -1, ZED); p.armL = [1.25, -.3];
       const g = guy(x, 320, FEET, 820, p, ZED); redEyes(x, g, 1, 1);
     } });
     pill(ctx, 790, 300, 'ДВЕРЬ ДЕРЖИТ', 'green', clamp((t - hold) / .25), { icon: 'check', size: 44 });

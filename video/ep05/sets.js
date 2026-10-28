@@ -6,6 +6,10 @@
 
 // ---------- people ----------
 
+// Nikita, the hero: the tracksuit guy with Down syndrome (guy() draws the face when ds is set: almond eyes slanting up,
+// a rounder, flatter face, a small nose, small low ears, rosy cheeks), a little stockier: shorter arms and legs, a wider body.
+const NIK = Object.assign({}, SUIT, { ds: true, build: { leg: .185, torso: .315, R: .12, upper: .15, fore: .14, tw: 1.18, belly: 1 } });
+
 // Passers-by in plain clothes (no stripes), the zombie walk, glowing eyes.
 const FOLK = [
   { skin: '#e8b98f', skinD: '#cf9d74', hair: '#2b1a10', suit: '#a8463c', suitD: '#8a3830', stripe: null, shoe: '#2a2a2e', mouth: '#5a1e1e' },
