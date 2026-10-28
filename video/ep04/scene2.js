@@ -131,7 +131,7 @@ SHOTS.push(
       const r = guy(x, 380, fy + 4, 280, { face: 1, eyes: 'zed', armR: [2.6, -.2], armL: [-.1, .1], seed: 9 }, ZED);
       x.fillStyle = '#141414'; rrect(x, r.hands.R.hand[0] - 14, r.hands.R.hand[1] - 40, 28, 56, 6); x.fill(); x.fillRect(r.hands.R.hand[0] + 6, r.hands.R.hand[1] - 70, 5, 34); x.fillStyle = '#ff3b30'; ell(x, r.hands.R.hand[0], r.hands.R.hand[1] - 28, 4, 4); x.fill();
       x.fillStyle = 'rgba(6,10,20,0.45)'; x.fillRect(0, fy - FH, 430, FH);
-      eyes.concat([r]).forEach(o => { for (const k of [.34, .72]) glow(x, o.head[0] + k * o.R, o.head[1] + .06 * o.R, 14, 'rgba(220,255,200,1)', .9); });
+      eyes.concat([r]).forEach(o => { for (const [ex, ey] of o.eyes) glow(x, ex, ey, 14, 'rgba(220,255,200,1)', .9); });
     } });
     ctx.restore();
     tint(ctx, '#5f6a8f', .3, 'multiply');

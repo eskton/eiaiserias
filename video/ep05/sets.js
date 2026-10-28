@@ -19,9 +19,8 @@ function zedWalk(t, seed = 0, face = 1, amt = .5) {
 }
 // Red eyes over a figure drawn by guy() (g is what it returned), looking to face.
 function redEyes(ctx, g, face, k = 1) {
-  if (k <= 0) return;
-  const [hx, hy] = g.head, r = g.R, xs = face ? [hx + face * .34 * r, hx + face * .72 * r] : [hx - .34 * r, hx + .34 * r];
-  for (const x of xs) { ctx.fillStyle = `rgba(255,70,50,${clamp(k)})`; ell(ctx, x, hy + .06 * r, .11 * r, .11 * r); ctx.fill(); glow(ctx, x, hy + .06 * r, r * .7, 'rgba(255,40,30,1)', .6 * clamp(k)); }
+  if (k <= 0 || !g) return;
+  for (const [x, y] of g.eyes) { ctx.fillStyle = `rgba(255,70,50,${clamp(k)})`; ell(ctx, x, y, .11 * g.R, .11 * g.R); ctx.fill(); glow(ctx, x, y, g.R * .7, 'rgba(255,40,30,1)', .6 * clamp(k)); }
 }
 
 // ---------- fire and smoke ----------
@@ -105,7 +104,7 @@ function outside(ctx, t, x, y, w, h, o = {}) {
     if (ch > .5) for (let i = 0; i < 2; i++) flame(ctx, t, x + w * (.3 + i * .45), y + h + 8, .6 * sx, sd + i);
     ctx.restore();
   }
-  if (o.siren > 0) { const red = Math.sin(t * 14) > 0; ctx.fillStyle = red ? `rgba(255,40,40,${.35 * o.siren})` : `rgba(40,90,255,${.35 * o.siren})`; ctx.fillRect(x, y, w, h); }
+  if (o.siren > 0) { const red = Math.sin(t * 8) > 0; ctx.fillStyle = red ? `rgba(255,40,40,${.35 * o.siren})` : `rgba(40,90,255,${.35 * o.siren})`; ctx.fillRect(x, y, w, h); }
 }
 
 // ---------- the block of flats in section ----------
@@ -211,60 +210,72 @@ function curtainPair(ctx, x, y, w, h, k, col = '#a85b4b') {
 
 // ---------- the kitchen ----------
 
-// Nikita's kitchen, front view: the window on the left with the street outside, a clock, a shelf, the table on the right.
-// o: chaos, night, siren (outside), curtains (0..1), time (hours on the clock), bowl (true), radio (0..1 lit), lamp (0..1).
-function kitchen(ctx, t, o = {}) {
-  wallpaper(ctx, 0, 0, W, 1560, '#d7c79f', 10);
-  ctx.fillStyle = '#bfae86'; ctx.fillRect(0, 1080, W, 480); ctx.fillStyle = '#a8966e'; ctx.fillRect(0, 1072, W, 12);
-  ctx.fillStyle = '#8a6f55'; ctx.fillRect(0, 1560, W, H - 1560);
-  ctx.fillStyle = 'rgba(0,0,0,0.06)'; for (let i = 0; i < 12; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2) ctx.fillRect(i * 96 - 20, 1580 + j * 90, 96, 90);
-  ctx.fillStyle = '#6f5238'; ctx.fillRect(0, 1548, W, 18);
-  // the window
-  ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(104, 306, 492, 704);
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(110, 300, 480, 700);
-  ctx.save(); ctx.beginPath(); ctx.rect(130, 320, 440, 660); ctx.clip();
-  outside(ctx, t, 130, 320, 440, 660, { chaos: o.chaos, night: o.night, siren: o.siren, seed: 3 });
-  ctx.restore();
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(342, 300, 16, 700); ctx.fillRect(110, 540, 480, 16);
-  ctx.fillStyle = '#c8c3b8'; ctx.fillRect(300, 760, 10, 60);  // the latch
-  ctx.fillStyle = '#efece6'; ctx.fillRect(80, 1000, 540, 34); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(90, 1034, 520, 12);
-  // a little radio on the sill
-  ctx.fillStyle = '#c9b48a'; rrect(ctx, 450, 900, 140, 100, 14); ctx.fill(); ctx.fillStyle = '#6b5a45'; rrect(ctx, 462, 914, 58, 72, 8); ctx.fill();
-  ctx.fillStyle = (o.radio || 0) > .5 ? '#ffe7a0' : '#efe2c0'; ctx.fillRect(530, 916, 48, 26); ctx.strokeStyle = '#8a7a60'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(575, 900); ctx.lineTo(640, 760); ctx.stroke();
-  if ((o.radio || 0) > .5) glow(ctx, 554, 929, 70, 'rgba(255,220,120,1)', .5);
-  if (o.curtains != null) curtainPair(ctx, 80, 270, 540, 760, o.curtains);
-  // the clock
-  const hr = o.time ?? 8;
-  ctx.fillStyle = '#5a4030'; ell(ctx, 850, 330, 88, 88); ctx.fill(); ctx.fillStyle = '#fbf7ee'; ell(ctx, 850, 330, 74, 74); ctx.fill();
-  ctx.fillStyle = '#333'; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.fillRect(850 + Math.sin(a) * 60 - 3, 330 - Math.cos(a) * 60 - 3, 6, 6); }
-  ctx.strokeStyle = '#222'; ctx.lineCap = 'round';
-  const hand = (a, l, w) => { ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(850, 330); ctx.lineTo(850 + Math.sin(a) * l, 330 - Math.cos(a) * l); ctx.stroke(); };
-  hand(hr / 12 * Math.PI * 2, 38, 8); hand((hr % 1) * Math.PI * 2, 56, 5);
-  // a shelf with jars and a plant
-  ctx.fillStyle = '#8a6a48'; ctx.fillRect(700, 640, 330, 16);
-  [['#d9a441', 730, 70], ['#c75b3a', 800, 54], ['#e8e0c8', 860, 80]].forEach(([c, x, h]) => { ctx.fillStyle = c; rrect(ctx, x, 640 - h, 50, h, 8); ctx.fill(); ctx.fillStyle = '#6b5a45'; ctx.fillRect(x + 4, 640 - h - 10, 42, 12); });
-  ctx.fillStyle = '#b5683e'; ctx.fillRect(950, 590, 56, 50); ctx.fillStyle = '#4f8a4a'; for (const [dx, dy] of [[-20, -40], [0, -60], [22, -42]]) { ell(ctx, 978 + dx, 590 + dy, 16, 30, dx * .02); ctx.fill(); }
-  // the lamp over the table
-  ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(760, 0); ctx.lineTo(760, 120); ctx.stroke();
-  ctx.fillStyle = '#c75b3a'; poly(ctx, [[700, 190], [820, 190], [790, 120], [730, 120]]); ctx.fill();
-  if ((o.lamp ?? 1) > .5) { ctx.fillStyle = '#fff3c8'; ell(ctx, 760, 192, 34, 12); ctx.fill(); glow(ctx, 760, 210, 260, 'rgba(255,230,170,1)', .25); }
+// The stage of the interiors, at the scale of the reference: the wall comes down to FLOOR, a figure HN tall stands
+// with its feet at FEET, a little in front of the wall.
+const FLOOR = 1490, FEET = 1560, HN = 800;
+
+// The back wall and floor of a room, reaching past the frame so a shot can zoom out.
+function roomBox(ctx, wall, lower, floor = '#8a6f55') {
+  wallpaper(ctx, -300, -300, W + 600, FLOOR + 300, wall, 10);
+  if (lower) { ctx.fillStyle = lower; ctx.fillRect(-300, 1130, W + 600, FLOOR - 1130); ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(-300, 1122, W + 600, 10); }
+  ctx.fillStyle = floor; ctx.fillRect(-300, FLOOR, W + 600, H - FLOOR + 400);
+  ctx.fillStyle = 'rgba(0,0,0,0.05)'; for (let x = -300; x < W + 300; x += 90) ctx.fillRect(x, FLOOR, 4, H - FLOOR + 400);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-300, FLOOR - 12, W + 600, 14);
 }
 
-// The kitchen table (drawn after Nikita when he sits behind it): top at y = 1420, a bowl of porridge on it.
+// Nikita's kitchen, front view: the window on the left with the street outside, a clock, a shelf, the doorway with the
+// light switch on the right. The table and the chair are drawn apart (kTable, kChair) so Nikita can sit between them.
+// o: chaos, night, siren (outside), curtains (0..1), time (hours on the clock), radio (0..1 lit), switch (0 on, 1 off).
+function kitchen(ctx, t, o = {}) {
+  roomBox(ctx, '#d7c79f', '#c6b38b');
+  // the window
+  const wx = 100, wy = 430, ww = 380, wh = 560;
+  ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(wx - 4, wy + 6, ww + 8, wh + 4);
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(wx, wy, ww, wh);
+  ctx.save(); ctx.beginPath(); ctx.rect(wx + 16, wy + 16, ww - 32, wh - 32); ctx.clip();
+  outside(ctx, t, wx + 16, wy + 16, ww - 32, wh - 32, { chaos: o.chaos, night: o.night, siren: o.siren, seed: 3 });
+  ctx.restore();
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(wx + ww / 2 - 7, wy, 14, wh); ctx.fillRect(wx, wy + 190, ww, 14);
+  ctx.fillStyle = '#c8c3b8'; ctx.fillRect(wx + ww / 2 - 30, wy + 330, 8, 50);
+  ctx.fillStyle = '#efece6'; ctx.fillRect(wx - 24, wy + wh, ww + 48, 26); ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(wx - 16, wy + wh + 26, ww + 32, 10);
+  // the little radio on the sill
+  const rx = wx + ww - 128, ry = wy + wh, lit = (o.radio || 0) > .5;
+  ctx.strokeStyle = '#8a7a60'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(rx + 96, ry - 70); ctx.lineTo(rx + 150, ry - 176); ctx.stroke();
+  ctx.fillStyle = '#c9b48a'; rrect(ctx, rx, ry - 74, 110, 74, 12); ctx.fill(); ctx.fillStyle = '#6b5a45'; rrect(ctx, rx + 10, ry - 64, 44, 54, 6); ctx.fill();
+  ctx.fillStyle = lit ? '#ffe7a0' : '#efe2c0'; ctx.fillRect(rx + 62, ry - 62, 38, 20); ctx.fillStyle = '#3c3126'; ell(ctx, rx + 82, ry - 22, 10, 10); ctx.fill();
+  if (lit) glow(ctx, rx + 80, ry - 52, 70, 'rgba(255,220,120,1)', .5);
+  if (o.curtains != null) curtainPair(ctx, wx - 30, wy - 30, ww + 60, wh + 70, o.curtains);
+  // the clock
+  const hr = o.time ?? 8, cx = 760, cy = 430;
+  ctx.fillStyle = '#5a4030'; ell(ctx, cx, cy, 62, 62); ctx.fill(); ctx.fillStyle = '#fbf7ee'; ell(ctx, cx, cy, 52, 52); ctx.fill();
+  ctx.fillStyle = '#333'; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.fillRect(cx + Math.sin(a) * 42 - 2.5, cy - Math.cos(a) * 42 - 2.5, 5, 5); }
+  ctx.strokeStyle = '#222'; ctx.lineCap = 'round';
+  const hand = (a, l, w) => { ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(a) * l, cy - Math.cos(a) * l); ctx.stroke(); };
+  hand(hr / 12 * Math.PI * 2, 27, 6); hand((hr % 1) * Math.PI * 2, 40, 4);
+  // a shelf with jars and a plant
+  ctx.fillStyle = '#8a6a48'; ctx.fillRect(600, 720, 250, 12);
+  [['#d9a441', 618, 54], ['#c75b3a', 670, 42], ['#e8e0c8', 718, 62]].forEach(([c, x, h]) => { ctx.fillStyle = c; rrect(ctx, x, 720 - h, 38, h, 6); ctx.fill(); ctx.fillStyle = '#6b5a45'; ctx.fillRect(x + 3, 720 - h - 8, 32, 9); });
+  ctx.fillStyle = '#b5683e'; ctx.fillRect(784, 682, 40, 38); ctx.fillStyle = '#4f8a4a'; for (const [dx, dy] of [[-14, -30], [0, -44], [16, -32]]) { ell(ctx, 804 + dx, 682 + dy, 12, 22, dx * .02); ctx.fill(); }
+  // the doorway on the right and the light switch next to it
+  ctx.fillStyle = '#9c8f78'; ctx.fillRect(976, 560, 400, FLOOR - 560); ctx.fillStyle = '#e4ded0'; ctx.fillRect(950, 540, 30, FLOOR - 540); ctx.fillRect(950, 540, 400, 24);
+  const sw = clamp(o.switch || 0); ctx.fillStyle = '#f4f2ec'; rrect(ctx, 898, 980, 38, 54, 6); ctx.fill(); ctx.fillStyle = '#d9d5ca'; ctx.fillRect(906, 990 + sw * 16, 22, 18);
+}
+
+// The kitchen table, top at y = 1190 (between Nikita's hip and shoulder when he sits): o.bowl (false: none), steam.
 function kTable(ctx, t, o = {}) {
-  ctx.fillStyle = '#6f5238'; ctx.fillRect(540, 1440, 26, 330); ctx.fillRect(950, 1440, 26, 330);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'; ell(ctx, 760, 1790, 280, 26); ctx.fill();
-  ctx.fillStyle = '#8a6a48'; ctx.fillRect(500, 1416, 500, 34); ctx.fillStyle = '#9c7b56'; ctx.fillRect(500, 1416, 500, 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.16)'; ell(ctx, 730, 1552, 190, 14); ctx.fill();
+  ctx.fillStyle = '#6f5238'; ctx.fillRect(580, 1210, 18, 340); ctx.fillRect(862, 1210, 18, 340);
+  ctx.fillStyle = '#8a6a48'; ctx.fillRect(556, 1190, 348, 24); ctx.fillStyle = '#9c7b56'; ctx.fillRect(556, 1190, 348, 6);
   if (o.bowl !== false) {
-    ctx.fillStyle = '#e8d3a0'; ell(ctx, 640, 1372, 74, 16); ctx.fill();
-    ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(560, 1372); ctx.quadraticCurveTo(570, 1418, 640, 1418); ctx.quadraticCurveTo(710, 1418, 720, 1372); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#3f6fb8'; ctx.fillRect(566, 1384, 148, 7);
-    if (o.steam) for (let i = 0; i < 3; i++) { const u = (t * .5 + i / 3) % 1; ctx.strokeStyle = `rgba(255,255,255,${.4 * (1 - u)})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(610 + i * 30, 1350 - u * 120); ctx.quadraticCurveTo(625 + i * 30, 1320 - u * 120, 610 + i * 30, 1290 - u * 120); ctx.stroke(); }
+    ctx.fillStyle = '#e8d3a0'; ell(ctx, 660, 1160, 50, 10); ctx.fill();
+    ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(606, 1160); ctx.quadraticCurveTo(612, 1190, 660, 1190); ctx.quadraticCurveTo(708, 1190, 714, 1160); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3f6fb8'; ctx.fillRect(610, 1168, 100, 5);
+    if (o.steam) for (let i = 0; i < 3; i++) { const u = (t * .5 + i / 3) % 1; ctx.strokeStyle = `rgba(255,255,255,${.4 * (1 - u)})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(640 + i * 20, 1140 - u * 90); ctx.quadraticCurveTo(650 + i * 20, 1118 - u * 90, 640 + i * 20, 1096 - u * 90); ctx.stroke(); }
   }
 }
-// The chair Nikita sits on, facing left (drawn before him).
-function kChair(ctx, x = 880) {
-  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(x + 70, 1180, 22, 600); ctx.fillRect(x - 70, 1560, 160, 22); ctx.fillRect(x - 64, 1580, 18, 200); ctx.fillRect(x + 70, 1580, 18, 200);
+// The chair Nikita sits on, facing left (drawn before him); x = where his feet are.
+function kChair(ctx, x = 820) {
+  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(x + 40, 1070, 14, FEET - 1070); ctx.fillRect(x - 60, 1340, 114, 14); ctx.fillRect(x - 56, 1354, 12, FEET - 1354);
 }
 
 // ---------- the street below the window ----------
@@ -291,7 +302,7 @@ function street(ctx, t, o = {}) {
   ctx.fillStyle = '#b3ad9f'; ctx.fillRect(0, 1624, W, 110); ctx.fillStyle = '#8f897e'; ctx.fillRect(0, 1610, W, 14);
   if (o.draw) o.draw(ctx);
   if (ch > 0) { ctx.save(); ctx.globalAlpha = clamp(ch); smokeCol(ctx, t, 980, 700, 1.1, 5, '60,56,60', .45); ctx.restore(); }
-  if (o.siren > 0) { const red = Math.sin(t * 14) > 0; ctx.fillStyle = red ? `rgba(255,40,40,${.22 * o.siren})` : `rgba(40,90,255,${.22 * o.siren})`; ctx.fillRect(0, 0, W, H); }
+  if (o.siren > 0) { const red = Math.sin(t * 8) > 0; ctx.fillStyle = red ? `rgba(255,40,40,${.22 * o.siren})` : `rgba(40,90,255,${.22 * o.siren})`; ctx.fillRect(0, 0, W, H); }
   // our windowsill and the wall under it
   ctx.fillStyle = '#cfc6b4'; ctx.fillRect(0, 1760, W, 160); ctx.fillStyle = '#efece6'; ctx.fillRect(0, 1730, W, 40); ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(0, 1770, W, 12);
 }
@@ -403,68 +414,71 @@ function outbreakMap(ctx, t, k, home = 1) {
 
 // ---------- the hallway and the barricade ----------
 
-// The front door from inside the flat: brown quilted leatherette, a lock, a lever handle, a peephole; coats on hooks.
-// o: lockK (0..1 bolt shut), handle (0..1 pressed), shake (0..1), wardrobe (0..1 slid in front of the door),
-// table (0..1), items (seconds since each of the five things landed, or null), ring (0..1 highlight on the door).
+// The front door from inside the flat: brown quilted leatherette, the lock with a thumb-turn, a lever handle, a peephole;
+// coats on hooks, a wall lamp. o: lockK (0..1 the thumb-turn turned), handle (0..1 pressed), shake (0..1), wardrobe
+// (0..1 slid in front of the door), table (0..1), items (seconds since each of the five things landed, or null),
+// ring (0..1 a dashed frame round the door), lockRing (0..1 round the lock).
+const DOOR = { x: 340, y: 610, w: 320, lock: [612, 1010], handle: [612, 1110] };
 function hallway(ctx, t, o = {}) {
-  wallpaper(ctx, -900, -900, W + 1800, 2500, '#c4b49a', 9);
-  ctx.fillStyle = '#7a644f'; ctx.fillRect(-900, 1600, W + 1800, 1300); ctx.fillStyle = 'rgba(0,0,0,0.08)'; for (let x = -900; x < W + 900; x += 90) ctx.fillRect(x, 1600, 4, 1300);
-  ctx.fillStyle = '#5a4030'; ctx.fillRect(-900, 1590, W + 1800, 18);
-  // coats on the hooks, a cap, shoes
-  ctx.fillStyle = '#5a4030'; ctx.fillRect(40, 520, 200, 20);
-  ctx.fillStyle = '#3d5f8a'; poly(ctx, [[70, 540], [130, 540], [150, 1020], [50, 1020]]); ctx.fill(); ctx.fillStyle = '#7a3b30'; poly(ctx, [[150, 540], [210, 540], [236, 960], [140, 960]]); ctx.fill();
-  ctx.fillStyle = '#2b2b30'; ell(ctx, 100, 1580, 46, 16); ctx.fill(); ell(ctx, 190, 1584, 46, 16); ctx.fill();
-  const [sx, sy] = o.shake ? [(noise1(t * 40) - .5) * 26 * o.shake, (noise1(t * 37 + 5) - .5) * 10 * o.shake] : [0, 0];
+  roomBox(ctx, '#c4b49a', null, '#7a644f');
+  // coats on the hooks, shoes, the wall lamp
+  ctx.fillStyle = '#5a4030'; ctx.fillRect(50, 700, 170, 16);
+  ctx.fillStyle = '#3d5f8a'; poly(ctx, [[74, 716], [124, 716], [142, 1080], [56, 1080]]); ctx.fill(); ctx.fillStyle = '#7a3b30'; poly(ctx, [[142, 716], [192, 716], [214, 1020], [128, 1020]]); ctx.fill();
+  ctx.fillStyle = '#2b2b30'; ell(ctx, 90, 1500, 38, 13); ctx.fill(); ell(ctx, 168, 1504, 38, 13); ctx.fill();
+  ctx.fillStyle = '#e8dcc0'; rrect(ctx, 880, 690, 70, 46, 20); ctx.fill(); if ((o.lamp ?? 1) > .5) glow(ctx, 915, 712, 260, 'rgba(255,236,190,1)', .2);
+  const [sx, sy] = o.shake ? [(noise1(t * 40) - .5) * 18 * o.shake, (noise1(t * 37 + 5) - .5) * 7 * o.shake] : [0, 0];
   ctx.save(); ctx.translate(sx, sy);
   // the door and its frame
-  ctx.fillStyle = '#4a2c1e'; ctx.fillRect(280, 400, 500, 1200);
-  ctx.fillStyle = '#6b3f2a'; ctx.fillRect(306, 426, 448, 1170);
-  ctx.save(); ctx.beginPath(); ctx.rect(306, 426, 448, 1170); ctx.clip();
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 4;
-  for (let i = -12; i < 14; i++) { ctx.beginPath(); ctx.moveTo(306 + i * 90, 426); ctx.lineTo(306 + i * 90 + 1170, 1596); ctx.stroke(); ctx.beginPath(); ctx.moveTo(754 - i * 90, 426); ctx.lineTo(754 - i * 90 - 1170, 1596); ctx.stroke(); }
-  ctx.fillStyle = '#c9a24a'; for (let i = -12; i < 14; i++) for (let j = 0; j < 14; j++) { const x = 306 + i * 90 + j * 90, y = 426 + j * 90; if (x > 300 && x < 760) { ell(ctx, x, y, 6, 6); ctx.fill(); } }
+  const { x, y, w } = DOOR, h = FLOOR - y;
+  ctx.fillStyle = '#4a2c1e'; ctx.fillRect(x - 20, y - 20, w + 40, h + 20);
+  ctx.fillStyle = '#6b3f2a'; ctx.fillRect(x, y, w, h);
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 3;
+  for (let i = -10; i < 12; i++) { ctx.beginPath(); ctx.moveTo(x + i * 64, y); ctx.lineTo(x + i * 64 + h, y + h); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + w - i * 64, y); ctx.lineTo(x + w - i * 64 - h, y + h); ctx.stroke(); }
+  ctx.fillStyle = '#c9a24a'; for (let i = -12; i < 14; i++) for (let j = 0; j < 15; j++) { const px = x + i * 64 + j * 64, py = y + j * 64; if (px > x && px < x + w) { ell(ctx, px, py, 4, 4); ctx.fill(); } }
   ctx.restore();
-  ctx.fillStyle = '#c9a24a'; ell(ctx, 530, 760, 16, 16); ctx.fill(); ctx.fillStyle = '#1a1210'; ell(ctx, 530, 760, 7, 7); ctx.fill();
-  // the lock: a round plate with a thumb-turn
-  ctx.fillStyle = '#b9bec4'; ell(ctx, 690, 960, 34, 34); ctx.fill(); ctx.save(); ctx.translate(690, 960); ctx.rotate((o.lockK || 0) * Math.PI / 2); ctx.fillStyle = '#80868c'; rrect(ctx, -9, -26, 18, 52, 8); ctx.fill(); ctx.restore();
-  ctx.save(); ctx.translate(690, 1110); ctx.rotate((o.handle || 0) * .45); ctx.fillStyle = '#b9bec4'; ell(ctx, 0, 0, 22, 22); ctx.fill(); rrect(ctx, -120, -12, 130, 24, 12); ctx.fill(); ctx.restore();
-  if (o.ring > 0) { ctx.save(); ctx.globalAlpha = clamp(o.ring); ctx.strokeStyle = TSC.y; ctx.lineWidth = 12; ctx.setLineDash([26, 16]); ctx.lineDashOffset = -t * 50; rrect(ctx, 250, 370, 560, 1260, 30); ctx.stroke(); ctx.restore(); }
+  ctx.fillStyle = '#c9a24a'; ell(ctx, x + w / 2, 820, 11, 11); ctx.fill(); ctx.fillStyle = '#1a1210'; ell(ctx, x + w / 2, 820, 5, 5); ctx.fill();
+  const [lx, ly] = DOOR.lock, [hx, hy] = DOOR.handle;
+  ctx.fillStyle = '#b9bec4'; ell(ctx, lx, ly, 22, 22); ctx.fill(); ctx.save(); ctx.translate(lx, ly); ctx.rotate((o.lockK || 0) * Math.PI / 2); ctx.fillStyle = '#80868c'; rrect(ctx, -6, -17, 12, 34, 6); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate((o.handle || 0) * .45); ctx.fillStyle = '#b9bec4'; ell(ctx, 0, 0, 15, 15); ctx.fill(); rrect(ctx, -84, -8, 92, 16, 8); ctx.fill(); ctx.restore();
+  dashRing(ctx, t, x - 40, y - 40, w + 80, h + 50, o.ring || 0);
+  dashRing(ctx, t, lx - 70, ly - 70, 140, 190, o.lockRing || 0);
   ctx.restore();
-  // the barricade
+  // the barricade: the wardrobe, the table in front of it, the pile on the table
   const wk = clamp(o.wardrobe || 0);
   if (wk > 0) {
-    const wx = lerp(1180, 300, wk);
-    ctx.save(); ctx.translate(wx + sx * .6, sy * .6);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ell(ctx, 230, 1650, 260, 26); ctx.fill();
-    ctx.fillStyle = '#7d5c3a'; ctx.fillRect(0, 560, 460, 1080); ctx.fillStyle = '#8c6a45'; ctx.fillRect(20, 600, 205, 1000); ctx.fillRect(235, 600, 205, 1000);
-    ctx.fillStyle = '#6b4c30'; ctx.fillRect(-14, 540, 488, 36); ctx.fillStyle = '#c9a24a'; ell(ctx, 205, 1100, 10, 10); ctx.fill(); ell(ctx, 255, 1100, 10, 10); ctx.fill();
+    const bx = lerp(1150, 350, wk);
+    ctx.save(); ctx.translate(bx + sx * .6, sy * .6);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ell(ctx, 150, 1528, 180, 16); ctx.fill();
+    ctx.fillStyle = '#7d5c3a'; ctx.fillRect(0, 840, 300, 690); ctx.fillStyle = '#8c6a45'; ctx.fillRect(14, 870, 132, 640); ctx.fillRect(154, 870, 132, 640);
+    ctx.fillStyle = '#6b4c30'; ctx.fillRect(-10, 826, 320, 24); ctx.fillStyle = '#c9a24a'; ell(ctx, 134, 1190, 7, 7); ctx.fill(); ell(ctx, 166, 1190, 7, 7); ctx.fill();
     ctx.restore();
   }
   const tk = clamp(o.table || 0);
   if (tk > 0) {
-    const tx = lerp(1250, 290, tk);
+    const tx = lerp(1200, 330, tk);
     ctx.save(); ctx.translate(tx + sx * .4, sy * .4);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ell(ctx, 250, 1800, 280, 24); ctx.fill();
-    ctx.fillStyle = '#6f5238'; ctx.fillRect(30, 1490, 30, 300); ctx.fillRect(440, 1490, 30, 300);
-    ctx.fillStyle = '#9c7b56'; ctx.fillRect(0, 1460, 500, 40); ctx.fillStyle = '#b08d64'; ctx.fillRect(0, 1460, 500, 9);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ell(ctx, 170, 1606, 200, 15); ctx.fill();
+    ctx.fillStyle = '#6f5238'; ctx.fillRect(22, 1290, 20, 312); ctx.fillRect(298, 1290, 20, 312);
+    ctx.fillStyle = '#9c7b56'; ctx.fillRect(0, 1266, 340, 28); ctx.fillStyle = '#b08d64'; ctx.fillRect(0, 1266, 340, 7);
     (o.items || []).forEach((age, i) => { if (age != null && age >= 0) stackItem(ctx, t, i, age); });
     ctx.restore();
   }
 }
-// The things piled on the table (in table coordinates, top at y = 1460): a box, a microwave, a kettlebell, books, a box.
+// The things piled on the table (table coordinates, top at y = 1266): a box, a microwave, a kettlebell, books, a box.
 function stackItem(ctx, t, i, age) {
-  const fall = clamp(age / .22), y0 = -700 * (1 - fall * fall), bounce = age > .22 ? Math.sin((age - .22) * 30) * 16 * Math.exp(-(age - .22) * 9) : 0;
+  const fall = clamp(age / .22), y0 = -600 * (1 - fall * fall), bounce = age > .22 ? Math.sin((age - .22) * 30) * 12 * Math.exp(-(age - .22) * 9) : 0;
   ctx.save(); ctx.translate(0, y0 - Math.abs(bounce));
-  if (i === 0) { ctx.fillStyle = '#c49a62'; ctx.fillRect(30, 1260, 230, 200); ctx.fillStyle = '#a97f4a'; ctx.fillRect(30, 1260, 230, 40); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(130, 1260, 30, 200); }
-  if (i === 1) { ctx.fillStyle = '#d6d8da'; rrect(ctx, 270, 1280, 220, 180, 14); ctx.fill(); ctx.fillStyle = '#2a2e33'; rrect(ctx, 288, 1300, 140, 140, 8); ctx.fill(); ctx.fillStyle = '#9aa1a8'; ctx.fillRect(444, 1310, 30, 10); ctx.fillRect(444, 1340, 30, 10); }
-  if (i === 2) { ctx.fillStyle = '#26282c'; ell(ctx, 150, 1200, 70, 62); ctx.fill(); ctx.strokeStyle = '#26282c'; ctx.lineWidth = 24; ctx.beginPath(); ctx.arc(150, 1140, 44, Math.PI, 0); ctx.stroke(); ctx.fillStyle = '#e9e6df'; ctx.font = `900 30px ${MONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('32', 150, 1204); }
-  if (i === 3) { [['#2f6fd6', 0], ['#d7342c', 1], ['#2e9e4a', 2], ['#e3893b', 3]].forEach(([c, k]) => { ctx.fillStyle = c; ctx.fillRect(285 + k * 6, 1220 - k * 56, 200, 54); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(285 + k * 6, 1240 - k * 56, 200, 6); }); }
-  if (i === 4) { ctx.fillStyle = '#b5885a'; ctx.fillRect(330, 990, 170, 120); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(405, 990, 20, 120); }
+  if (i === 0) { ctx.fillStyle = '#c49a62'; ctx.fillRect(20, 1126, 150, 140); ctx.fillStyle = '#a97f4a'; ctx.fillRect(20, 1126, 150, 28); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(84, 1126, 22, 140); }
+  if (i === 1) { ctx.fillStyle = '#d6d8da'; rrect(ctx, 178, 1146, 150, 120, 10); ctx.fill(); ctx.fillStyle = '#2a2e33'; rrect(ctx, 190, 1160, 94, 92, 6); ctx.fill(); ctx.fillStyle = '#9aa1a8'; ctx.fillRect(294, 1166, 22, 7); ctx.fillRect(294, 1186, 22, 7); }
+  if (i === 2) { ctx.fillStyle = '#26282c'; ell(ctx, 96, 1084, 46, 42); ctx.fill(); ctx.strokeStyle = '#26282c'; ctx.lineWidth = 16; ctx.beginPath(); ctx.arc(96, 1044, 29, Math.PI, 0); ctx.stroke(); ctx.fillStyle = '#e9e6df'; ctx.font = `900 22px ${MONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('32', 96, 1088); }
+  if (i === 3) { [['#2f6fd6', 0], ['#d7342c', 1], ['#2e9e4a', 2], ['#e3893b', 3]].forEach(([c, k]) => { ctx.fillStyle = c; ctx.fillRect(186 + k * 4, 1108 - k * 38, 136, 36); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(186 + k * 4, 1121 - k * 38, 136, 4); }); }
+  if (i === 4) { ctx.fillStyle = '#b5885a'; ctx.fillRect(214, 914, 112, 80); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(262, 914, 14, 80); }
   ctx.restore();
 }
 
-// A close-up of the lock and the handle. o: turn (0..2, turns of the key: the bolt goes in on each), jiggle (0..1),
-// ok (0..1, a green tick), hand (0..1).
+// A close-up of the lock and the handle (no hand: the thumb-turn and the lever move by themselves, as an insert).
+// o: turn (0..2 turns of the thumb-turn; locked after two), jiggle (0..1 the handle tried), ok (0..1 a green tick).
 function lockClose(ctx, t, o = {}) {
   ctx.fillStyle = '#6b3f2a'; ctx.fillRect(0, 0, W, H);
   ctx.save(); ctx.translate(-200, -300); ctx.scale(2.4, 2.4);
@@ -472,30 +486,17 @@ function lockClose(ctx, t, o = {}) {
   for (let i = -10; i < 14; i++) { ctx.beginPath(); ctx.moveTo(i * 90, 0); ctx.lineTo(i * 90 + 1200, 1200); ctx.stroke(); ctx.beginPath(); ctx.moveTo(i * 90 + 700, 0); ctx.lineTo(i * 90 - 500, 1200); ctx.stroke(); }
   ctx.fillStyle = '#c9a24a'; for (let i = -10; i < 14; i++) for (let j = 0; j < 14; j++) { ell(ctx, i * 90 + j * 90 + 35, j * 90, 5, 5); ctx.fill(); }
   ctx.restore();
-  // the lock plate with the thumb-turn
-  const tr = o.turn || 0, jig = o.jiggle ? Math.sin(t * 34) * .12 * o.jiggle : 0;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ell(ctx, 548, 618, 180, 180); ctx.fill();
-  ctx.fillStyle = '#c3c8cd'; ell(ctx, 540, 610, 180, 180); ctx.fill(); ctx.fillStyle = '#d9dde1'; ell(ctx, 520, 590, 150, 150); ctx.fill();
-  ctx.save(); ctx.translate(540, 610); ctx.rotate(tr * Math.PI + jig);
-  ctx.fillStyle = '#8a9096'; rrect(ctx, -44, -150, 88, 300, 44); ctx.fill(); ctx.fillStyle = '#a6acb2'; rrect(ctx, -30, -140, 40, 280, 20); ctx.fill();
-  ctx.restore();
-  // the handle below
+  const tr = o.turn || 0, jig = o.jiggle ? Math.sin(t * 34) * .1 * o.jiggle : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ell(ctx, 548, 628, 180, 180); ctx.fill();
+  ctx.fillStyle = '#c3c8cd'; ell(ctx, 540, 620, 180, 180); ctx.fill(); ctx.fillStyle = '#d9dde1'; ell(ctx, 522, 600, 150, 150); ctx.fill();
+  ctx.save(); ctx.translate(540, 620); ctx.rotate(tr * Math.PI + jig); ctx.fillStyle = '#8a9096'; rrect(ctx, -44, -150, 88, 300, 44); ctx.fill(); ctx.fillStyle = '#a6acb2'; rrect(ctx, -30, -140, 40, 280, 20); ctx.fill(); ctx.restore();
   ctx.save(); ctx.translate(540, 1560); ctx.rotate(o.jiggle ? Math.max(0, Math.sin(t * 17)) * .35 * o.jiggle : 0);
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; rrect(ctx, -60, -40, 560, 96, 48); ctx.fill();
   ctx.fillStyle = '#c3c8cd'; ell(ctx, 0, 0, 90, 90); ctx.fill(); rrect(ctx, -40, -46, 540, 92, 46); ctx.fill(); ctx.fillStyle = '#e2e5e8'; rrect(ctx, 0, -40, 480, 26, 13); ctx.fill();
   ctx.restore();
-  const hk = clamp(o.hand || 0);
-  if (hk > 0) {
-    const hx = lerp(1300, 700, outc(hk)), hy = lerp(1100, 700, outc(hk));
-    ctx.save(); ctx.translate(hx, hy); ctx.rotate(tr * Math.PI * .35 + jig);
-    ctx.fillStyle = SUIT.suit; ctx.fillRect(90, -90, 700, 260); ctx.fillStyle = SUIT.stripe; ctx.fillRect(90, 110, 700, 22);
-    ctx.fillStyle = SUIT.skin; ell(ctx, 40, 20, 140, 120); ctx.fill(); ctx.fillStyle = SUIT.skinD; rrect(ctx, -170, -70, 150, 64, 32); ctx.fill(); rrect(ctx, -150, 0, 130, 60, 30); ctx.fill();
-    ctx.restore();
-  }
-  // the bolt: open until the second turn
   const b = clamp(tr / 2);
-  pill(ctx, 540, 1040, b >= 1 ? 'ЗАПЕРТО' : 'ОТКРЫТО', b >= 1 ? 'green' : 'red', 1, { icon: b >= 1 ? 'lock' : 'cross', size: 40 });
-  if (o.ok > 0) { const a = outBack(clamp(o.ok)); ctx.save(); ctx.translate(820, 330); ctx.scale(a, a); ctx.fillStyle = TSC.n; ell(ctx, 0, 0, 90, 90); ctx.fill(); icon2(ctx, 'check', 0, 0, 120, '#fff', TSC.n); ctx.restore(); }
+  pill(ctx, 540, 1000, b >= 1 ? 'ЗАПЕРТО' : 'ОТКРЫТО', b >= 1 ? 'green' : 'red', 1, { icon: b >= 1 ? 'lock' : 'cross', size: 44 });
+  if (o.ok > 0) { const a = outBack(clamp(o.ok)); ctx.save(); ctx.translate(840, 330); ctx.scale(a, a); ctx.fillStyle = TSC.n; ell(ctx, 0, 0, 90, 90); ctx.fill(); icon2(ctx, 'check', 0, 0, 120, '#fff', TSC.n); ctx.restore(); }
 }
 
 // ---------- the door in section ----------
@@ -504,30 +505,29 @@ function lockClose(ctx, t, o = {}) {
 // o: dark (0..1), lamp (the landing bulb, 0..1), rattle (0..1 the door shakes), who(ctx) draws on the landing,
 // nik(ctx) draws inside, meter (0..1 or null).
 function doorSection(ctx, t, o = {}) {
-  // the landing: two-tone painted walls, a bare bulb
-  ctx.fillStyle = '#cfcab8'; ctx.fillRect(0, 0, 470, 1600); ctx.fillStyle = '#6f8a72'; ctx.fillRect(0, 900, 470, 700); ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(0, 894, 470, 6);
-  ctx.fillStyle = '#8a7f72'; ctx.fillRect(0, 1600, 470, H - 1600); ctx.fillStyle = 'rgba(0,0,0,0.1)'; for (let x = 0; x < 470; x += 80) ctx.fillRect(x, 1600, 4, H - 1600);
-  ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(230, 0); ctx.lineTo(230, 230); ctx.stroke();
+  ctx.fillStyle = '#cfcab8'; ctx.fillRect(-300, -300, 780, FLOOR + 300); ctx.fillStyle = '#6f8a72'; ctx.fillRect(-300, 1000, 780, FLOOR - 1000); ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(-300, 994, 780, 6);
+  ctx.fillStyle = '#8a7f72'; ctx.fillRect(-300, FLOOR, 780, H - FLOOR + 300); ctx.fillStyle = 'rgba(0,0,0,0.1)'; for (let x = -300; x < 480; x += 80) ctx.fillRect(x, FLOOR, 4, H - FLOOR + 300);
+  ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(240, -300); ctx.lineTo(240, 330); ctx.stroke();
   const lamp = o.lamp ?? 1, fl = lamp * (Math.sin(t * 23) > .92 ? .4 : 1);
-  ctx.fillStyle = fl > .5 ? '#fff6d0' : '#7a7462'; ell(ctx, 230, 260, 30, 36); ctx.fill(); if (fl > .5) glow(ctx, 230, 270, 420, 'rgba(255,240,190,1)', .3 * fl);
+  ctx.fillStyle = fl > .5 ? '#fff6d0' : '#7a7462'; ell(ctx, 240, 356, 24, 30); ctx.fill(); if (fl > .5) glow(ctx, 240, 366, 380, 'rgba(255,240,190,1)', .3 * fl);
   // the flat inside: wallpaper, floor
-  wallpaper(ctx, 530, 0, W - 530, 1600, '#c4b49a', 9); ctx.fillStyle = '#7a644f'; ctx.fillRect(530, 1600, W - 530, H - 1600);
+  wallpaper(ctx, 530, -300, W, FLOOR + 300, '#c4b49a', 9); ctx.fillStyle = '#7a644f'; ctx.fillRect(530, FLOOR, W, H - FLOOR + 300);
   // the wall cut through, with the doorway
-  ctx.fillStyle = '#6f6a60'; ctx.fillRect(462, 0, 76, 400); ctx.fillRect(462, 1600, 76, H - 1600);
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 3; for (let y = -40; y < 400; y += 36) { ctx.beginPath(); ctx.moveTo(462, y); ctx.lineTo(538, y + 40); ctx.stroke(); }
+  ctx.fillStyle = '#6f6a60'; ctx.fillRect(470, -300, 64, DOOR.y + 300); ctx.fillRect(470, FLOOR, 64, H - FLOOR + 300);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 3; for (let y = -300; y < DOOR.y; y += 32) { ctx.beginPath(); ctx.moveTo(470, y); ctx.lineTo(534, y + 36); ctx.stroke(); }
   if (o.who) o.who(ctx);
-  const rt = o.rattle ? Math.sin(t * 50) * 6 * o.rattle : 0;
+  const rt = o.rattle ? Math.sin(t * 50) * 5 * o.rattle : 0;
   ctx.save(); ctx.translate(rt, 0);
-  ctx.fillStyle = '#3e2418'; ctx.fillRect(474, 400, 52, 1200); ctx.fillStyle = '#8a8f94'; ctx.fillRect(470, 400, 8, 1200); ctx.fillRect(522, 400, 8, 1200);
-  ctx.fillStyle = '#b9bec4'; rrect(ctx, 404, 1098, 70, 22, 11); ctx.fill(); rrect(ctx, 526, 1098, 70, 22, 11); ctx.fill();
+  ctx.fillStyle = '#3e2418'; ctx.fillRect(480, DOOR.y, 44, FLOOR - DOOR.y); ctx.fillStyle = '#8a8f94'; ctx.fillRect(477, DOOR.y, 6, FLOOR - DOOR.y); ctx.fillRect(521, DOOR.y, 6, FLOOR - DOOR.y);
+  ctx.fillStyle = '#b9bec4'; rrect(ctx, 424, 1104, 56, 16, 8); ctx.fill(); rrect(ctx, 524, 1104, 56, 16, 8); ctx.fill();
   ctx.restore();
-  // the barricade pressed against the door: the wardrobe on its side, the table, the pile
+  // the barricade pressed against the door: the wardrobe side-on, the table, the pile
   ctx.save(); ctx.translate(rt * .4, 0);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ell(ctx, 700, 1606, 200, 14); ctx.fill();
-  ctx.fillStyle = '#7d5c3a'; ctx.fillRect(532, 560, 170, 1040); ctx.fillStyle = '#6b4c30'; ctx.fillRect(526, 540, 186, 30);
-  ctx.fillStyle = '#6f5238'; ctx.fillRect(712, 1340, 24, 260); ctx.fillRect(960, 1340, 24, 260); ctx.fillStyle = '#9c7b56'; ctx.fillRect(704, 1310, 300, 34);
-  ctx.fillStyle = '#c49a62'; ctx.fillRect(720, 1130, 150, 180); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(785, 1130, 20, 180);
-  ctx.fillStyle = '#d6d8da'; rrect(ctx, 880, 1170, 120, 140, 10); ctx.fill(); ctx.fillStyle = '#26282c'; ell(ctx, 790, 1080, 46, 42); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ell(ctx, 650, 1500, 150, 12); ctx.fill();
+  ctx.fillStyle = '#7d5c3a'; ctx.fillRect(530, 840, 120, 650); ctx.fillStyle = '#6b4c30'; ctx.fillRect(526, 826, 128, 22);
+  ctx.fillStyle = '#6f5238'; ctx.fillRect(660, 1290, 18, 200); ctx.fillRect(884, 1290, 18, 200); ctx.fillStyle = '#9c7b56'; ctx.fillRect(654, 1266, 254, 26);
+  ctx.fillStyle = '#c49a62'; ctx.fillRect(664, 1146, 110, 120); ctx.fillStyle = '#e2d2a8'; ctx.fillRect(710, 1146, 16, 120);
+  ctx.fillStyle = '#d6d8da'; rrect(ctx, 790, 1166, 100, 100, 8); ctx.fill(); ctx.fillStyle = '#26282c'; ell(ctx, 720, 1100, 34, 30); ctx.fill();
   ctx.restore();
   if (o.nik) o.nik(ctx);
   if (o.meter != null) meter(ctx, 90, 250, 520, 'ЗАЩИТА', o.meter, '#3fbf5a', 1);
@@ -538,29 +538,33 @@ function doorSection(ctx, t, o = {}) {
 // The main room: a window on the left, the balcony door with its window on the right; radiator, curtains.
 // o: chaos, night, vent (0..1 the left sash open), balcony (0..1 the balcony door open), curtains (0..1), lat / blat
 // (0..1 the window's and the balcony door's handles turned shut).
+const WIN = { x: 70, y: 430, w: 360, h: 560 }, BAL = { x: 540, door: 160, w: 460 };
 function windowsWall(ctx, t, o = {}) {
-  wallpaper(ctx, 0, 0, W, 1600, '#b9c4a8', 10);
-  ctx.fillStyle = '#8a6f55'; ctx.fillRect(0, 1600, W, H - 1600); ctx.fillStyle = '#6f5238'; ctx.fillRect(0, 1590, W, 16);
+  roomBox(ctx, '#b9c4a8', null);
   const pane = (x, y, w, h) => { ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); outside(ctx, t, x - 200, y - 100, w + 400, h + 200, { chaos: o.chaos, night: o.night, seed: 4 }); ctx.restore(); };
-  // the window: two panes, the top-left vent can stand open
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(60, 330, 400, 680); pane(80, 350, 360, 640);
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(252, 330, 16, 680); ctx.fillRect(60, 540, 400, 14);
-  const v = clamp(o.vent || 0), fx = 80 + 172 * (1 - .7 * v);
-  if (v > 0) { ctx.fillStyle = '#e9e6df'; poly(ctx, [[80, 350], [fx, 350 - 36 * v], [fx, 990 + 36 * v], [80, 990]]); ctx.fill(); ctx.fillStyle = 'rgba(160,190,210,0.45)'; poly(ctx, [[94, 366], [fx - 14, 366 - 32 * v], [fx - 14, 974 + 32 * v], [94, 974]]); ctx.fill(); }
-  ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(fx - 22, 760); ctx.rotate((1 - clamp(o.lat ?? 1)) * Math.PI / 2); ctx.fillRect(-6, -40, 12, 80); ctx.restore();
-  ctx.fillStyle = '#efece6'; ctx.fillRect(40, 1010, 440, 30);
-  ctx.fillStyle = '#e2e2de'; for (let i = 0; i < 9; i++) rrect(ctx, 90 + i * 38, 1080, 30, 220, 10), ctx.fill();
+  const { x, y, w, h } = WIN;
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(x, y, w, h); pane(x + 16, y + 16, w - 32, h - 32);
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(x + w / 2 - 7, y, 14, h); ctx.fillRect(x, y + 180, w, 12);
+  const v = clamp(o.vent || 0), fx = x + 16 + (w / 2 - 23) * (1 - .7 * v);
+  if (v > 0) { ctx.fillStyle = '#ecebe6'; poly(ctx, [[x + 16, y + 16], [fx, y + 16 - 30 * v], [fx, y + h - 16 + 30 * v], [x + 16, y + h - 16]]); ctx.fill(); ctx.fillStyle = 'rgba(160,190,210,0.45)'; poly(ctx, [[x + 28, y + 28], [fx - 12, y + 28 - 26 * v], [fx - 12, y + h - 28 + 26 * v], [x + 28, y + h - 28]]); ctx.fill(); }
+  ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(fx - 18, y + 390); ctx.rotate((1 - clamp(o.lat ?? 1)) * Math.PI / 2); ctx.fillRect(-5, -30, 10, 60); ctx.restore();
+  ctx.fillStyle = '#efece6'; ctx.fillRect(x - 20, y + h, w + 40, 26); ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(x - 12, y + h + 26, w + 24, 9);
+  ctx.fillStyle = '#e2e2de'; for (let i = 0; i < 8; i++) { rrect(ctx, x + 30 + i * 38, y + h + 70, 30, 170, 10); ctx.fill(); }
   // the balcony door and its window
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(560, 330, 460, 1270);
-  pane(780, 350, 220, 640);
-  const bk = clamp(o.balcony || 0);
-  ctx.fillStyle = '#20242b'; ctx.fillRect(580, 350, 180, 1230); pane(580, 350, 180, 1230);
-  if (bk > 0) { ctx.fillStyle = '#e9e6df'; poly(ctx, [[580, 350], [580 + 180 * (1 - .55 * bk), 350 - 40 * bk], [580 + 180 * (1 - .55 * bk), 1580 + 40 * bk], [580, 1580]]); ctx.fill(); ctx.fillStyle = 'rgba(160,190,210,0.4)'; poly(ctx, [[596, 370], [580 + 166 * (1 - .55 * bk), 370 - 36 * bk], [580 + 166 * (1 - .55 * bk), 1560 + 36 * bk], [596, 1560]]); ctx.fill(); }
-  else { ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(600, 370, 30, 1190); }
-  ctx.fillStyle = '#e9e6df'; ctx.fillRect(760, 330, 20, 1270); ctx.fillRect(780, 990, 240, 610); ctx.fillRect(580, 960, 180, 14);
-  if (bk <= 0) { ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(735, 1000); ctx.rotate((1 - clamp(o.blat ?? 1)) * Math.PI / 2); ctx.fillRect(-6, -40, 12, 80); ctx.restore(); }
-  if (o.curtains != null) { curtainPair(ctx, 30, 300, 460, 760, o.curtains, '#5f7d6e'); curtainPair(ctx, 540, 300, 500, 1290, o.curtains, '#5f7d6e'); }
+  const bx = BAL.x, bw = BAL.w, dw = BAL.door, bk = clamp(o.balcony || 0);
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(bx, y, bw, FLOOR - y);
+  pane(bx + dw + 36, y + 16, bw - dw - 52, h - 32);
+  ctx.fillStyle = '#20242b'; ctx.fillRect(bx + 16, y + 16, dw, FLOOR - y - 24); pane(bx + 16, y + 16, dw, FLOOR - y - 24);
+  const ex = bx + 16 + dw * (1 - .55 * bk);
+  if (bk > 0) { ctx.fillStyle = '#ecebe6'; poly(ctx, [[bx + 16, y + 16], [ex, y + 16 - 36 * bk], [ex, FLOOR - 8 + 36 * bk], [bx + 16, FLOOR - 8]]); ctx.fill(); ctx.fillStyle = 'rgba(160,190,210,0.4)'; poly(ctx, [[bx + 28, y + 30], [ex - 12, y + 30 - 32 * bk], [ex - 12, FLOOR - 22 + 32 * bk], [bx + 28, FLOOR - 22]]); ctx.fill(); }
+  else { ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(bx + 30, y + 30, 22, FLOOR - y - 60); }
+  ctx.fillStyle = '#ecebe6'; ctx.fillRect(bx + dw + 16, y, 20, FLOOR - y); ctx.fillRect(bx + dw + 36, y + h - 16, bw - dw - 36, FLOOR - y - h + 16); ctx.fillRect(bx + 16, y + 420, dw, 12);
+  if (bk <= 0) { ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(bx + dw - 6, 1000); ctx.rotate((1 - clamp(o.blat ?? 1)) * Math.PI / 2); ctx.fillRect(-5, -30, 10, 60); ctx.restore(); }
+  if (o.curtains != null) { curtainPair(ctx, x - 30, y - 30, w + 60, h + 90, o.curtains, '#5f7d6e'); curtainPair(ctx, bx - 20, y - 30, bw + 40, FLOOR - y + 26, o.curtains, '#5f7d6e'); }
 }
+// Where Nikita's hand goes to shut things: the window sash handle and the balcony door's free edge.
+const sashHandle = v => [WIN.x + 16 + (WIN.w / 2 - 23) * (1 - .7 * v) - 18, WIN.y + 390];
+const balconyEdge = bk => BAL.x + 16 + BAL.door * (1 - .55 * bk);
 
 // ---------- water and food ----------
 
@@ -645,30 +649,6 @@ function pantry(ctx, t, o = {}) {
   pop(o.box || 0, 540, 1860, () => { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ell(ctx, 0, 6, 300, 22); ctx.fill(); ctx.fillStyle = '#c49a62'; ctx.fillRect(-280, -330, 560, 330); ctx.fillStyle = '#a97f4a'; poly(ctx, [[-280, -330], [-330, -400], [-60, -400], [-20, -330]]); ctx.fill(); poly(ctx, [[280, -330], [330, -400], [60, -400], [20, -330]]); ctx.fill(); label('ЕДА', 0, -170, 84, '#5a3a20'); });
 }
 
-// ---------- the light switch ----------
-
-// A switch on the kitchen wall: o.down (0..1 pressed off), finger (0..1 the hand coming in).
-function switchClose(ctx, t, o = {}) {
-  wallpaper(ctx, 0, 0, W, H, '#d7c79f', 14);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'; rrect(ctx, 352, 452, 400, 520, 40); ctx.fill();
-  ctx.fillStyle = '#f4f2ec'; rrect(ctx, 340, 440, 400, 520, 40); ctx.fill();
-  const dn = clamp(o.down || 0);
-  ctx.fillStyle = '#e4e1d8'; rrect(ctx, 420, 520, 240, 360, 26); ctx.fill();
-  ctx.fillStyle = '#fbfaf6'; ctx.save(); ctx.translate(540, 700); ctx.scale(1, 1);
-  poly(ctx, [[-110, -170 + dn * 20], [110, -170 + dn * 20], [110, 10 * (1 - dn) - 10 * dn], [-110, 10 * (1 - dn) - 10 * dn]]); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(-110, dn > .5 ? -10 : 10, 220, 160);
-  ctx.restore();
-  ctx.fillStyle = dn > .5 ? '#9aa1a8' : '#ff8a3a'; ell(ctx, 540, 580, 10, 10); ctx.fill();
-  const fk = clamp(o.finger || 0);
-  if (fk > 0) {
-    const fx = lerp(1300, 600, outc(fk)), fy = lerp(1100, 640 + dn * 60, outc(fk));
-    ctx.save(); ctx.translate(fx, fy); ctx.rotate(-.35);
-    ctx.fillStyle = SUIT.suit; ctx.fillRect(160, -110, 700, 260); ctx.fillStyle = SUIT.stripe; ctx.fillRect(160, 120, 700, 22);
-    ctx.fillStyle = SUIT.skin; ell(ctx, 120, 10, 130, 115); ctx.fill(); rrect(ctx, -60, -40, 180, 64, 32); ctx.fill(); ctx.fillStyle = SUIT.skinD; rrect(ctx, 20, 30, 120, 50, 25); ctx.fill();
-    ctx.restore();
-  }
-}
-
 // ---------- the house at night ----------
 
 // The block from the street at night: most windows dark, a few lit, Nikita's (floor 7) dark behind curtains; fires and
@@ -717,17 +697,8 @@ function flat7(ctx, t, c, o = {}) {
   if (o.dark > 0) { ctx.fillStyle = `rgba(8,12,26,${.6 * o.dark})`; ctx.fillRect(0, c, 750, FH); }
 }
 
-// Arm angles [shoulder, elbow] for guy() so that the right hand reaches (tx, ty) on the canvas. Same body maths as
-// guy(); bend = 1 or -1 chooses which way the elbow points.
-function reach(x, y, h, p, tx, ty, bend = 1) {
-  const s = p.face ?? 1, side = s !== 0, crouch = p.crouch || 0, floor = p.sit === 'floor', lean = p.lean || 0;
-  const hip = [p.dx || 0, p.hipY ?? (floor ? -.07 : p.sit ? -.27 : -(2 * .205 + .02) * (1 - crouch * .4))];
-  const j = [hip[0] + Math.sin(lean) * .3 + (side ? -.01 * (s || 1) : .088), hip[1] - Math.cos(lean) * .3 + .035];
-  const dx = (tx - x) / h - j[0], dy = (ty - y) / h - j[1], L1 = .165, L2 = .167;
-  const d = Math.min(Math.hypot(dx, dy), L1 + L2 - 1e-4), ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
-  const al = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1)), as = Math.atan2(dx, dy) + bend * al;
-  return [as, Math.atan2(ux * d - Math.sin(as) * L1, uy * d - Math.cos(as) * L1) - as];
-}
+// Arm angles for guy() so that the right hand reaches (tx, ty): see guyReach() in tracksuit.js.
+const reach = guyReach;
 
 // A spoon in a hand, pointing at angle a (canvas radians, 0 = right).
 function spoon(ctx, hand, a, s = 1) {
