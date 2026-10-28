@@ -37,6 +37,8 @@ function guyFrame(p, idle = false, now = 0, seed = 0, B = GB) {
 // hold(ctx, hand), noShadow. Returns { head, R, hands: { L, R }, eyes: [[x, y], [x, y]] } in canvas pixels.
 // L is the palette (window.HERO, an episode's hero, by default); L.ds draws the face of someone with Down syndrome:
 // almond eyes slanting up at the outer corners, a rounder, flatter face, a small nose, small low ears, rosy cheeks.
+// Face options in L: dsEyes ('almond', 'folds' the round eyes with inner folds, 'narrow'), faceW, glasses,
+// hairStyle ('bowl', 'short', 'side'), openSmile.
 function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   const now = window.NOW || 0, seed = (p.seed || 0) + hashStr(L.suit + L.skin), idle = p.idle !== false;
   const f = p.face ?? 1, side = f !== 0, s = f || 1;
@@ -85,13 +87,18 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   if (side) hands.R = arm(1, p.armR, L.suit);
   else { hands.L = arm(-1, p.armL, L.suit); hands.R = arm(1, p.armR, L.suit); }
   // the head: a circle with a thin dark rim, the bowl cut on top
-  const [hx, hy] = U(...head), r = R * h, rx = r * (ds ? 1.05 : 1), ry = r * (ds ? .97 : 1);
+  const [hx, hy] = U(...head), r = R * h, rx = r * (ds ? (L.faceW || 1.05) : 1), ry = r * (ds ? .97 : 1);
   ctx.fillStyle = L.skin; ell(ctx, hx, hy, rx, ry); ctx.fill();
   ctx.fillStyle = L.skinD;
   if (ds) { if (side) { ell(ctx, hx - s * .26 * r, hy + .24 * r, .15 * r, .16 * r); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * 1.0 * rx, hy + .24 * r, .11 * r, .15 * r); ctx.fill(); } }
   else if (side) { ell(ctx, hx - s * .2 * r, hy + .14 * r, .19 * r, .21 * r); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * .97 * r, hy + .14 * r, .14 * r, .19 * r); ctx.fill(); }
-  ctx.save(); ctx.beginPath(); ctx.ellipse(hx, hy, rx * 1.06, ry * 1.06, 0, Math.PI, 0); ctx.lineTo(hx + rx * 1.06, hy - .1 * r); ctx.lineTo(hx - rx * 1.06, hy - .1 * r); ctx.closePath();
-  ctx.fillStyle = L.hair; ctx.fill();
+  // the hair: a bowl cut (default), a close crop ('short') or a fringe swept to one side ('side')
+  const hs = L.hairStyle || 'bowl', hw = rx * 1.06, f0 = side ? -s : -1;
+  ctx.save(); ctx.beginPath();
+  if (hs === 'short') { ctx.ellipse(hx, hy, rx * 1.03, ry * 1.03, 0, Math.PI, 0); ctx.lineTo(hx + rx * 1.03, hy - .28 * r); ctx.quadraticCurveTo(hx, hy - .52 * r, hx - rx * 1.03, hy - .28 * r); }
+  else if (hs === 'side') { ctx.ellipse(hx, hy, hw, ry * 1.06, 0, Math.PI, 0); ctx.lineTo(hx - f0 * hw, hy - .3 * r); ctx.quadraticCurveTo(hx - f0 * .1 * r, hy - .22 * r, hx + f0 * hw, hy + .02 * r); }
+  else { ctx.ellipse(hx, hy, hw, ry * 1.06, 0, Math.PI, 0); ctx.lineTo(hx + hw, hy - .1 * r); ctx.lineTo(hx - hw, hy - .1 * r); }
+  ctx.closePath(); ctx.fillStyle = L.hair; ctx.fill();
   ctx.restore();
   ctx.strokeStyle = 'rgba(60,32,20,0.28)'; ctx.lineWidth = Math.max(1.5, .035 * r); ell(ctx, hx, hy, rx, ry); ctx.stroke();
   if (ds) {
@@ -108,17 +115,30 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   const lk = (p.look || 0) * .07 * r + (side ? s * .05 * r : 0), lky = (p.lookY || 0) * .07 * r;
   ex.forEach((cx, i) => {
     const sc = side && i === 1 ? .9 : 1, wr = (e === 'wide' ? .25 : .2) * r * sc;
+    if (ds && e !== 'zed' && L.dsEyes === 'folds' && (e === 'dot' || e === 'wide')) {
+      // the round eyes of the series with the inner corner hooded by a soft fold, so the eye opens up and outwards
+      const inner = side ? (i === 0 ? s : -s) : (i === 0 ? 1 : -1), w2 = wr * .95;
+      ctx.save(); ctx.translate(cx, ey);
+      ctx.fillStyle = '#ffffff'; ell(ctx, 0, 0, w2, w2); ctx.fill();
+      ctx.fillStyle = TSC.ink; const pr = (e === 'wide' ? .08 : .095) * r * sc; ell(ctx, clamp(lk, -w2 + pr, w2 - pr) - inner * .03 * r, clamp(lky, -w2 + pr, w2 - pr) + .01 * r, pr, pr); ctx.fill();
+      const fold = () => { ctx.moveTo(inner * w2 * .1, -w2 * 1.02); ctx.quadraticCurveTo(inner * w2 * .7, -w2 * .55, inner * w2 * .95, w2 * .42); };
+      ctx.save(); ell(ctx, 0, 0, w2, w2); ctx.clip(); ctx.fillStyle = L.skin; ctx.beginPath(); fold(); ctx.lineTo(inner * w2 * 1.3, w2 * .42); ctx.lineTo(inner * w2 * 1.3, -w2 * 1.3); ctx.lineTo(inner * w2 * .1, -w2 * 1.3); ctx.closePath(); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = TSC.ink; ctx.lineWidth = .045 * r; ctx.lineCap = 'round'; ctx.beginPath(); fold(); ctx.stroke();
+      ctx.restore();
+      return;
+    }
     if (ds && e !== 'zed') {
-      // an almond eye, its outer corner higher than the inner one
-      const tilt = (i === 0 ? 1 : -1) * (side ? s * .22 : .4), w = (e === 'wide' ? .21 : .19) * r * sc, hh = (e === 'wide' ? .15 : .1) * r * sc;
-      const shape = () => { ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * 1.35, w * .5, -hh * 1.35, w, 0); ctx.bezierCurveTo(w * .5, hh * .95, -w * .5, hh * .95, -w, 0); ctx.closePath(); };
+      // an almond eye, its outer corner higher than the inner one ('narrow' makes it slimmer and more slanted)
+      const nar = L.dsEyes === 'narrow', tilt = (i === 0 ? 1 : -1) * (side ? s * .22 : (nar ? .36 : .4));
+      const w = (e === 'wide' ? .21 : nar ? .18 : .19) * r * sc, hh = (e === 'wide' ? .15 : nar ? .085 : .1) * r * sc, up = nar ? 1.7 : 1.35, dn = nar ? .55 : .95;
+      const shape = () => { ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * up, w * .5, -hh * up, w, 0); ctx.bezierCurveTo(w * .5, hh * dn, -w * .5, hh * dn, -w, 0); ctx.closePath(); };
       ctx.save(); ctx.translate(cx, ey); ctx.rotate(tilt); ctx.lineCap = 'round'; ctx.strokeStyle = TSC.ink; ctx.lineWidth = .05 * r;
       if (e === 'closed') { ctx.beginPath(); ctx.moveTo(-w, 0); ctx.quadraticCurveTo(0, hh * .7, w, 0); ctx.stroke(); ctx.restore(); return; }
       if (e === 'happy') { ctx.beginPath(); ctx.moveTo(-w, hh * .3); ctx.quadraticCurveTo(0, -hh * 1.3, w, hh * .3); ctx.stroke(); ctx.restore(); return; }
       ctx.fillStyle = '#ffffff'; shape(); ctx.fill();
       ctx.save(); shape(); ctx.clip(); ctx.rotate(-tilt); ctx.fillStyle = TSC.ink; const pr = (e === 'wide' ? .08 : .085) * r * sc;
       ell(ctx, clamp(lk, -w + pr, w - pr), clamp(lky, -hh, hh) + hh * .1, pr, pr); ctx.fill(); ctx.restore();
-      ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * 1.35, w * .5, -hh * 1.35, w, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * up, w * .5, -hh * up, w, 0); ctx.stroke();
       // a small fold of skin over the inner corner
       const inner = (i === 0 ? 1 : -1) * (side ? s : 1); ctx.lineWidth = .03 * r; ctx.strokeStyle = 'rgba(90,50,35,0.55)';
       ctx.beginPath(); ctx.moveTo(inner * w * .55, -hh * .95); ctx.quadraticCurveTo(inner * w * 1.05, -hh * .5, inner * w * .98, hh * .35); ctx.stroke();
@@ -131,11 +151,21 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
     ell(ctx, cx + clamp(lk, -wr + pr, wr - pr), ey + clamp(lky, -wr + pr, wr - pr), pr, pr); ctx.fill();
   });
   if (p.tears) { ctx.fillStyle = 'rgba(140,200,255,0.9)'; ex.forEach((cx, i) => { const u = ((now * .7 + i * .45) % 1); ell(ctx, cx, ey + .25 * r + u * .5 * r, .06 * r, .09 * r); ctx.fill(); }); }
+  if (L.glasses) {
+    // round glasses: thin dark rims, a bridge, an arm back to the ear
+    ctx.strokeStyle = '#2b2b30'; ctx.lineWidth = .045 * r; const gr = .3 * r;
+    ex.forEach((cx, i) => { const sc = side && i === 1 ? .86 : 1; ell(ctx, cx, ey, gr * sc, gr * sc); ctx.stroke(); });
+    ctx.beginPath();
+    if (side) { ctx.moveTo(ex[0] + s * gr, ey - .05 * r); ctx.lineTo(ex[1] - s * gr * .86, ey - .05 * r); ctx.moveTo(ex[0] - s * gr, ey - .03 * r); ctx.lineTo(hx - s * .26 * r, hy + .14 * r); }
+    else { ctx.moveTo(ex[0] + gr, ey - .05 * r); ctx.quadraticCurveTo(hx, ey - .14 * r, ex[1] - gr, ey - .05 * r); ctx.moveTo(ex[0] - gr, ey - .03 * r); ctx.lineTo(hx - rx * .98, ey); ctx.moveTo(ex[1] + gr, ey - .03 * r); ctx.lineTo(hx + rx * .98, ey); }
+    ctx.stroke();
+  }
   // the mouth: a short line, a smile, or an "o" when shocked or talking
   const m = clamp(p.mouth || 0), mx = side ? hx + s * .64 * r : hx, my = hy + .52 * r;
   const smile = p.smile ?? (ds && e === 'dot' ? .3 : 0);  // a kind face at rest
   ctx.fillStyle = L.mouth;
   if (m > .05) { ell(ctx, mx, my, (.06 + .05 * m) * r, (.04 + .12 * m) * r); ctx.fill(); }
+  else if (smile && L.openSmile) { ctx.beginPath(); ctx.moveTo(mx - .14 * r, my - .05 * r); ctx.lineTo(mx + .14 * r, my - .05 * r); ctx.quadraticCurveTo(mx + .12 * r, my + .14 * r * (.6 + smile), mx, my + .14 * r * (.6 + smile)); ctx.quadraticCurveTo(mx - .12 * r, my + .14 * r * (.6 + smile), mx - .14 * r, my - .05 * r); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.fillRect(mx - .1 * r, my - .05 * r, .2 * r, .04 * r); }
   else if (smile) { ctx.strokeStyle = L.mouth; ctx.lineWidth = .045 * r; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mx - .13 * r, my - .03 * r); ctx.quadraticCurveTo(mx, my + .1 * r * smile, mx + .13 * r, my - .03 * r); ctx.stroke(); }
   else { ctx.fillRect(mx - .08 * r, my - .015 * r, .16 * r, .032 * r); }
   if (p.hold) p.hold(ctx, hands.R.hand, hands);
