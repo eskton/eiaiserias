@@ -223,7 +223,7 @@ function topTitle(ctx, small, big, k = 1, y = 230) {
   ctx.restore();
 }
 
-// A pill badge. kind: dark, yellow, red, blue, green, white; o.icon: warn, check, cross, drop, dot, down, up, bolt.
+// A pill badge. kind: dark, yellow, red, blue, green, white, orange; o.icon: any icon2() kind.
 const PILL = { dark: ['#1f2226', '#ffffff'], yellow: ['#f6c533', '#1a1a1a'], red: ['#d7342c', '#ffffff'], blue: ['#2f6fd6', '#ffffff'], green: ['#2e9e4a', '#ffffff'], white: ['#ffffff', '#141414'], orange: ['#e3893b', '#ffffff'] };
 function pill(ctx, x, y, text, kind = 'dark', k = 1, o = {}) {
   if (k <= 0) return;
@@ -241,7 +241,8 @@ function pill(ctx, x, y, text, kind = 'dark', k = 1, o = {}) {
   ctx.restore();
 }
 
-// Small icons drawn by hand (no emoji font needed), centred at (x, y), about s across.
+// Small icons drawn by hand (no emoji font needed), centred at (x, y), about s across: warn, check, cross, drop, dot,
+// down, up, bolt, battery, house, window, hand (stop), bio (biohazard), bell, mute (the bell crossed out), lock, clock.
 function icon2(ctx, kind, x, y, s, col, bg = '#000') {
   ctx.save(); ctx.translate(x, y); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = s * .16;
   if (kind === 'warn') { poly(ctx, [[0, -s * .48], [s * .52, s * .42], [-s * .52, s * .42]]); ctx.fill(); ctx.fillStyle = bg; ctx.fillRect(-s * .05, -s * .15, s * .1, s * .32); ell(ctx, 0, s * .3, s * .06, s * .06); ctx.fill(); }
@@ -252,6 +253,27 @@ function icon2(ctx, kind, x, y, s, col, bg = '#000') {
   if (kind === 'down' || kind === 'up') { const d = kind === 'down' ? 1 : -1; poly(ctx, [[-s * .4, -s * .2 * d], [s * .4, -s * .2 * d], [0, s * .35 * d]]); ctx.fill(); }
   if (kind === 'bolt') poly(ctx, [[s * .1, -s * .5], [-s * .3, s * .08], [-s * .02, s * .08], [-s * .12, s * .5], [s * .3, -s * .1], [s * .02, -s * .1]]), ctx.fill();
   if (kind === 'battery') { ctx.lineWidth = s * .1; rrect(ctx, -s * .45, -s * .25, s * .8, s * .5, s * .08); ctx.stroke(); ctx.fillRect(s * .38, -s * .1, s * .1, s * .2); ctx.fillStyle = '#ff3b30'; ctx.fillRect(-s * .36, -s * .16, s * .14, s * .32); }
+  if (kind === 'house') { poly(ctx, [[-s * .48, -s * .02], [0, -s * .46], [s * .48, -s * .02], [s * .36, -s * .02], [s * .36, s * .42], [-s * .36, s * .42], [-s * .36, -s * .02]]); ctx.fill(); ctx.fillStyle = bg; ctx.fillRect(-s * .1, s * .12, s * .2, s * .3); }
+  if (kind === 'window') { ctx.lineWidth = s * .12; ctx.strokeRect(-s * .36, -s * .4, s * .72, s * .8); ctx.beginPath(); ctx.moveTo(0, -s * .4); ctx.lineTo(0, s * .4); ctx.moveTo(-s * .36, -s * .04); ctx.lineTo(s * .36, -s * .04); ctx.stroke(); }
+  if (kind === 'hand') {
+    rrect(ctx, -s * .3, -s * .1, s * .6, s * .52, s * .14); ctx.fill();
+    for (let i = 0; i < 4; i++) { rrect(ctx, -s * .3 + i * s * .157, -s * .48 + (i === 0 || i === 3 ? s * .08 : 0), s * .13, s * .46, s * .065); ctx.fill(); }
+    ctx.save(); ctx.translate(-s * .3, s * .08); ctx.rotate(-.7); rrect(ctx, -s * .065, -s * .32, s * .13, s * .34, s * .065); ctx.fill(); ctx.restore();
+  }
+  if (kind === 'bio') {
+    for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 3; ell(ctx, Math.cos(a) * s * .19, Math.sin(a) * s * .19, s * .23, s * .23); ctx.fill(); }
+    ctx.fillStyle = bg; for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 3; ell(ctx, Math.cos(a) * s * .27, Math.sin(a) * s * .27, s * .12, s * .12); ctx.fill(); }
+    ell(ctx, 0, 0, s * .07, s * .07); ctx.fill();
+  }
+  if (kind === 'bell' || kind === 'mute') {
+    ctx.beginPath(); ctx.moveTo(-s * .32, s * .22); ctx.quadraticCurveTo(-s * .26, s * .1, -s * .26, -s * .08); ctx.quadraticCurveTo(-s * .26, -s * .4, 0, -s * .4);
+    ctx.quadraticCurveTo(s * .26, -s * .4, s * .26, -s * .08); ctx.quadraticCurveTo(s * .26, s * .1, s * .32, s * .22); ctx.closePath(); ctx.fill(); ell(ctx, 0, s * .3, s * .08, s * .08); ctx.fill();
+    if (kind === 'bell') { ctx.restore(); return; }
+    ctx.strokeStyle = bg; ctx.lineWidth = s * .2; ctx.beginPath(); ctx.moveTo(-s * .42, -s * .42); ctx.lineTo(s * .42, s * .42); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = s * .1; ctx.beginPath(); ctx.moveTo(-s * .42, -s * .42); ctx.lineTo(s * .42, s * .42); ctx.stroke();
+  }
+  if (kind === 'lock') { ctx.lineWidth = s * .12; ctx.beginPath(); ctx.arc(0, -s * .1, s * .2, Math.PI, 0); ctx.stroke(); rrect(ctx, -s * .32, -s * .1, s * .64, s * .5, s * .08); ctx.fill(); ctx.fillStyle = bg; ell(ctx, 0, s * .12, s * .06, s * .06); ctx.fill(); }
+  if (kind === 'clock') { ctx.lineWidth = s * .1; ell(ctx, 0, 0, s * .4, s * .4); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, -s * .25); ctx.lineTo(0, 0); ctx.lineTo(s * .18, s * .1); ctx.stroke(); }
   ctx.restore();
 }
 

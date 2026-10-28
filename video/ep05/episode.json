@@ -1,0 +1,1 @@
+{"voice": "audio/ep05/ep05_voice_full.mp3", "alignment": "audio/ep05/alignment.json", "keywords": "audio/ep05/keywords.txt", "voice_end": 120.38, "end": 124.0, "libs": ["video/engine/tracksuit.js", "video/engine/tracksuit_sets.js", "video/ep05/sets.js"], "captions": {"max_chars": 16, "max_words": 3}}

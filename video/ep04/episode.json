@@ -1,1 +1,1 @@
-{"voice": "audio/ep04/ep04_voice_draft.mp3", "alignment": "audio/ep04/alignment.json", "keywords": "audio/ep04/keywords.txt", "voice_end": 58.9, "end": 61.4, "libs": ["video/engine/tracksuit.js"], "captions": {"max_chars": 16, "max_words": 3}}
+{"voice": "audio/ep04/ep04_voice_draft.mp3", "alignment": "audio/ep04/alignment.json", "keywords": "audio/ep04/keywords.txt", "voice_end": 58.9, "end": 61.4, "libs": ["video/engine/tracksuit.js", "video/engine/tracksuit_sets.js"], "captions": {"max_chars": 16, "max_words": 3}}

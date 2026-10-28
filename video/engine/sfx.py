@@ -606,6 +606,79 @@ def intro_hit(seed=0):
     return subdrop(seed, dur=1.4, decay=3.2, drive=2.2)
 
 
+def scrape(dur=1.2, seed=0):
+    """Heavy furniture dragged over the floor: stick-slip bursts and a low rumble."""
+    rng = np.random.default_rng(seed)
+    out = np.zeros(int(dur * SR))
+    k = 0.0
+    while k < dur - 0.06:
+        b = band(noise(0.05, seed + int(k * 1000)), 250, 2200) * np.exp(-secs(0.05) * 60)
+        i = int(k * SR)
+        out[i:i + len(b)] += b * (0.6 + 0.4 * rng.random())
+        k += 0.03 + 0.03 * rng.random()
+    t = secs(dur)
+    out += band(noise(dur, seed + 7), 40, 220) * 1.5
+    out *= np.minimum(1, t / 0.08) * np.minimum(1, (dur - t) / 0.15)
+    return reverb(norm(out), 0.5, 0.2, seed)
+
+
+def pour(dur=1.0, f0=400, f1=1400, seed=0, rate=60):
+    """Water running into a bottle or a pot: hiss and bubbles whose pitch rises as it fills."""
+    rng = np.random.default_rng(seed)
+    out = band(noise(dur, seed), 800, 7000) * 0.25
+    tt = secs(0.05)
+    for _ in range(int(dur * rate)):
+        tk = rng.random() * (dur - 0.05)
+        f = (f0 + (f1 - f0) * tk / dur) * (0.8 + 0.4 * rng.random())
+        b = np.sin(2 * np.pi * f * tt * (1 + 2 * tt)) * np.exp(-tt * 70) * (0.5 + 0.5 * rng.random())
+        i = int(tk * SR)
+        out[i:i + len(b)] += b
+    t = secs(dur)
+    out *= np.minimum(1, t / 0.05) * np.minimum(1, (dur - t) / 0.1)
+    return reverb(norm(band(out, 150, 8000)), 0.4, 0.2, seed)
+
+
+def rise(dur=1.0, f0=300, f1=1200, seed=0):
+    """A rising charge-up tone (a meter filling)."""
+    t = secs(dur)
+    f = f0 * (f1 / f0) ** (t / dur)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    x = (np.sin(ph) + 0.3 * np.sin(2 * ph)) * (0.7 + 0.3 * np.sin(2 * np.pi * 14 * t)) * np.minimum(1, t / (dur * .8))
+    return norm(fade(x, 0.01, 0.06))
+
+
+def beeps(n=3, f=1000, gap=0.18, seed=0):
+    """Attention beeps before an announcement."""
+    out = np.zeros(int((n * gap + 0.2) * SR))
+    t = secs(0.1)
+    b = np.sin(2 * np.pi * f * t) * np.minimum(1, t / 0.005) * np.minimum(1, (0.1 - t) / 0.01)
+    for k in range(n):
+        i = int(k * gap * SR)
+        out[i:i + len(b)] += b
+    return norm(out)
+
+
+def city_chaos(dur, seed=0):
+    """A city falling apart, heard from a flat: a low rumble, a crowd, far sirens and screams now and then."""
+    rng = np.random.default_rng(seed)
+    out = band(np.cumsum(noise(dur, seed)) * 0.02, 25, 180) * 3.0 + band(murmur(dur, seed + 1), hi=900) * 0.35
+    n = len(out)
+    s = band(siren(9.0, seed + 2), hi=1500) * 0.25
+    for k in range(int(dur / 9) + 1):
+        i = int((k * 9 + rng.random() * 2) * SR)
+        m = min(len(s), n - i)
+        if m > 0:
+            out[i:i + m] += s[:m]
+    k = 0.5
+    while k < dur - 1.5:
+        sc = band(scream(seed + int(k * 10), 0.8 + rng.random() * 0.6), hi=2200)
+        i = int(k * SR)
+        m = min(len(sc), n - i)
+        out[i:i + m] += sc[:m] * (0.15 + 0.2 * rng.random())
+        k += 1.2 + rng.random() * 2.5
+    return norm(out)
+
+
 def default_beds():
     return [lambda d: room(d, 1), lambda d: wind(d, 2), lambda d: drone(d, 3), lambda d: shimmer(d, 4)]
 
