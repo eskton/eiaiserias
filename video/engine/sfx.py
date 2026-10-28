@@ -569,6 +569,43 @@ def speakerize(x, seed=0):
     return y + band(noise(len(x) / SR, seed), 2000, 6000) * 0.006
 
 
+def swoosh(rise=0.28, tail=0.3, seed=0):
+    """A fast transition whoosh: air noise swelling for rise seconds (36 dB, brighter as it comes) and dying away."""
+    t = secs(rise + tail)
+    u = np.clip(t / rise, 0, 1)
+    env = np.where(t < rise, 10 ** ((-36 + 36 * u) / 20), np.exp(-14 * (t - rise)))
+    x = noise(rise + tail, seed)
+    y = (band(x, 120, 1200) + band(x, 1200, 7000) * (0.25 + 0.75 * u) * 0.9 + band(x, 30, 120) * 1.6) * env
+    return norm(fade(y, 0.005, 0.03))
+
+
+def subdrop(seed=0, dur=0.6, decay=11.0, drive=1.3):
+    """A sub-bass hit that drops in pitch; a little drive so that phone speakers still give the thump."""
+    t = secs(dur)
+    f = 38 + 30 * np.exp(-t * 6)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * decay)
+    x = np.tanh(x * drive) / np.tanh(drive)
+    k = band(noise(0.03, seed), 100, 1000) * np.exp(-secs(0.03) * 120)
+    x[:len(k)] += k * 0.5
+    return norm(fade(x, 0.001, 0.05))
+
+
+def transition(seed=0):
+    """Whoosh into a bass hit, the sound over a cut: put it 0.28 s before the cut, so the whoosh peaks on the cut
+    and the bass hits a tenth of a second after it."""
+    w, h = swoosh(0.28, 0.3, seed), subdrop(seed)
+    hit = int(0.38 * SR)
+    out = np.zeros(hit + len(h))
+    out[:len(w)] += w * 0.9
+    out[hit:] += h
+    return norm(out)
+
+
+def intro_hit(seed=0):
+    """The hit under the first words: a long sub boom."""
+    return subdrop(seed, dur=1.4, decay=3.2, drive=2.2)
+
+
 def default_beds():
     return [lambda d: room(d, 1), lambda d: wind(d, 2), lambda d: drone(d, 3), lambda d: shimmer(d, 4)]
 
