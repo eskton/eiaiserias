@@ -37,8 +37,10 @@ function guyFrame(p, idle = false, now = 0, seed = 0, B = GB) {
 // hold(ctx, hand), noShadow. Returns { head, R, hands: { L, R }, eyes: [[x, y], [x, y]] } in canvas pixels.
 // L is the palette (window.HERO, an episode's hero, by default); L.ds draws the face of someone with Down syndrome:
 // almond eyes slanting up at the outer corners, a rounder, flatter face, a small nose, small low ears, rosy cheeks.
-// Face options in L: dsEyes ('almond', 'folds' the round eyes with inner folds, 'narrow'), faceW, glasses,
-// hairStyle ('bowl', 'short', 'side'), openSmile.
+// Face options in L: dsEyes ('almond', 'folds' the round eyes with inner folds, 'narrow', 'strong' small, strongly
+// slanted, with the inner fold filled), faceW / faceH, headLow (the head sits lower on the shoulders), earSmall,
+// earLow, nose ('button'), cheekS, restMouth ('open': a little open at rest), glasses, hairStyle ('bowl', 'short',
+// 'side'), openSmile.
 function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   const now = window.NOW || 0, seed = (p.seed || 0) + hashStr(L.suit + L.skin), idle = p.idle !== false;
   const f = p.face ?? 1, side = f !== 0, s = f || 1;
@@ -46,7 +48,7 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   const U = (u, v) => [x + u * h, y + v * h], dir = a => [Math.sin(a), Math.cos(a)];
   const B = guyBuild(L), ds = !!L.ds, { hip, sh, lean, crouch, floor } = guyFrame(p, idle, now, seed, B);
   const R = B.R, hd = p.head || [0, 0];
-  const head = [sh[0] + Math.sin(lean) * R * .6 + hd[0], sh[1] - R * .8 + hd[1]];
+  const head = [sh[0] + Math.sin(lean) * R * .6 + hd[0], sh[1] - R * (L.headLow ? .64 : .8) + hd[1]];
   const line = (pts, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w * h; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach((q, i) => { const [a, b] = U(...q); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.stroke(); };
   // the white stripe along a limb, on its outer side
   const stripe = (pts, off) => { if (!L.stripe) return; const q = pts.map(([u, v], i) => { const [a, b] = pts[Math.min(i + 1, pts.length - 1)], [c, d] = pts[Math.max(i - 1, 0)], dx = a - c, dy = b - d, n = Math.hypot(dx, dy) || 1; return [u - dy / n * off, v + dx / n * off]; }); line(q, .0075, L.stripe); };
@@ -87,10 +89,10 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   if (side) hands.R = arm(1, p.armR, L.suit);
   else { hands.L = arm(-1, p.armL, L.suit); hands.R = arm(1, p.armR, L.suit); }
   // the head: a circle with a thin dark rim, the bowl cut on top
-  const [hx, hy] = U(...head), r = R * h, rx = r * (ds ? (L.faceW || 1.05) : 1), ry = r * (ds ? .97 : 1);
+  const [hx, hy] = U(...head), r = R * h, rx = r * (ds ? (L.faceW || 1.05) : 1), ry = r * (ds ? (L.faceH || .97) : 1);
   ctx.fillStyle = L.skin; ell(ctx, hx, hy, rx, ry); ctx.fill();
   ctx.fillStyle = L.skinD;
-  if (ds) { if (side) { ell(ctx, hx - s * .26 * r, hy + .24 * r, .15 * r, .16 * r); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * 1.0 * rx, hy + .24 * r, .11 * r, .15 * r); ctx.fill(); } }
+  if (ds) { const eY = L.earLow ? .33 : .24, eS = L.earSmall ? .78 : 1; if (side) { ell(ctx, hx - s * .28 * r, hy + eY * r, .15 * r * eS, .16 * r * eS); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * 1.0 * rx, hy + eY * r, .11 * r * eS, .15 * r * eS); ctx.fill(); } }
   else if (side) { ell(ctx, hx - s * .2 * r, hy + .14 * r, .19 * r, .21 * r); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * .97 * r, hy + .14 * r, .14 * r, .19 * r); ctx.fill(); }
   // the hair: a bowl cut (default), a close crop ('short') or a fringe swept to one side ('side')
   const hs = L.hairStyle || 'bowl', hw = rx * 1.06, f0 = side ? -s : -1;
@@ -103,14 +105,21 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   ctx.strokeStyle = 'rgba(60,32,20,0.28)'; ctx.lineWidth = Math.max(1.5, .035 * r); ell(ctx, hx, hy, rx, ry); ctx.stroke();
   if (ds) {
     // rosy round cheeks and a small, low-bridged nose
-    ctx.fillStyle = 'rgba(232,118,104,0.32)';
-    if (side) { ell(ctx, hx + s * .56 * r, hy + .34 * r, .17 * r, .11 * r); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * .56 * r, hy + .34 * r, .16 * r, .11 * r); ctx.fill(); }
-    ctx.fillStyle = L.skinD; if (side) { ell(ctx, hx + s * .74 * r, hy + .3 * r, .09 * r, .075 * r); ctx.fill(); } else { ell(ctx, hx, hy + .3 * r, .1 * r, .075 * r); ctx.fill(); }
+    const cS = L.cheekS || 1; ctx.fillStyle = 'rgba(232,118,104,0.32)';
+    if (side) { ell(ctx, hx + s * .56 * r, hy + .36 * r, .17 * r * cS, .11 * r * cS); ctx.fill(); } else for (const k of [-1, 1]) { ell(ctx, hx + k * .58 * rx, hy + .36 * r, .16 * r * cS, .11 * r * cS); ctx.fill(); }
+    ctx.fillStyle = L.skinD;
+    if (L.nose === 'button') {
+      // a small button nose with a flat bridge
+      if (side) { ell(ctx, hx + s * .8 * r, hy + .27 * r, .11 * r, .085 * r); ctx.fill(); ctx.fillStyle = 'rgba(90,50,35,0.55)'; ell(ctx, hx + s * .84 * r, hy + .31 * r, .025 * r, .02 * r); ctx.fill(); }
+      else { ell(ctx, hx, hy + .27 * r, .13 * r, .09 * r); ctx.fill(); ctx.fillStyle = 'rgba(90,50,35,0.55)'; for (const k of [-1, 1]) { ell(ctx, hx + k * .05 * r, hy + .31 * r, .024 * r, .02 * r); ctx.fill(); } }
+    }
+    else if (side) { ell(ctx, hx + s * .74 * r, hy + .3 * r, .09 * r, .075 * r); ctx.fill(); } else { ell(ctx, hx, hy + .3 * r, .1 * r, .075 * r); ctx.fill(); }
   }
   // the eyes: two white dots with black pupils, at the front of the face
   let e = p.eyes || 'dot';
   if ((e === 'dot' || e === 'wide') && idle && blinking(now, seed)) e = 'closed';
-  const ex = ds ? (side ? [hx + s * .42 * r, hx + s * .86 * r] : [hx - .43 * r, hx + .43 * r]) : side ? [hx + s * .46 * r, hx + s * .86 * r] : [hx - .36 * r, hx + .36 * r];
+  const sp = L.dsEyes === 'strong' ? .47 : .43;
+  const ex = ds ? (side ? [hx + s * .4 * r, hx + s * .86 * r] : [hx - sp * rx, hx + sp * rx]) : side ? [hx + s * .46 * r, hx + s * .86 * r] : [hx - .36 * r, hx + .36 * r];
   const ey = hy + (ds ? .08 : .06) * r;
   const lk = (p.look || 0) * .07 * r + (side ? s * .05 * r : 0), lky = (p.lookY || 0) * .07 * r;
   ex.forEach((cx, i) => {
@@ -129,15 +138,25 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
     }
     if (ds && e !== 'zed') {
       // an almond eye, its outer corner higher than the inner one ('narrow' makes it slimmer and more slanted)
-      const nar = L.dsEyes === 'narrow', tilt = (i === 0 ? 1 : -1) * (side ? s * .22 : (nar ? .36 : .4));
-      const w = (e === 'wide' ? .21 : nar ? .18 : .19) * r * sc, hh = (e === 'wide' ? .15 : nar ? .085 : .1) * r * sc, up = nar ? 1.7 : 1.35, dn = nar ? .55 : .95;
+      const nar = L.dsEyes === 'narrow', st = L.dsEyes === 'strong', tilt = (i === 0 ? 1 : -1) * (side ? s * (st ? .3 : .22) : (st ? .5 : nar ? .36 : .4));
+      const w = (e === 'wide' ? (st ? .19 : .21) : st ? .17 : nar ? .18 : .19) * r * sc, hh = (e === 'wide' ? (st ? .13 : .15) : st ? .085 : nar ? .085 : .1) * r * sc;
+      const up = st ? 1.5 : nar ? 1.7 : 1.35, dn = st ? .7 : nar ? .55 : .95;
       const shape = () => { ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * up, w * .5, -hh * up, w, 0); ctx.bezierCurveTo(w * .5, hh * dn, -w * .5, hh * dn, -w, 0); ctx.closePath(); };
       ctx.save(); ctx.translate(cx, ey); ctx.rotate(tilt); ctx.lineCap = 'round'; ctx.strokeStyle = TSC.ink; ctx.lineWidth = .05 * r;
       if (e === 'closed') { ctx.beginPath(); ctx.moveTo(-w, 0); ctx.quadraticCurveTo(0, hh * .7, w, 0); ctx.stroke(); ctx.restore(); return; }
       if (e === 'happy') { ctx.beginPath(); ctx.moveTo(-w, hh * .3); ctx.quadraticCurveTo(0, -hh * 1.3, w, hh * .3); ctx.stroke(); ctx.restore(); return; }
       ctx.fillStyle = '#ffffff'; shape(); ctx.fill();
       ctx.save(); shape(); ctx.clip(); ctx.rotate(-tilt); ctx.fillStyle = TSC.ink; const pr = (e === 'wide' ? .08 : .085) * r * sc;
-      ell(ctx, clamp(lk, -w + pr, w - pr), clamp(lky, -hh, hh) + hh * .1, pr, pr); ctx.fill(); ctx.restore();
+      ell(ctx, clamp(lk, -w + pr, w - pr), clamp(lky, -hh, hh) + hh * .1, pr, pr); ctx.fill();
+      if (st) { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ell(ctx, clamp(lk, -w + pr, w - pr) - pr * .35, clamp(lky, -hh, hh) - pr * .3, pr * .3, pr * .3); ctx.fill(); }
+      ctx.restore();
+      if (st) {
+        // the fold of skin over the inner corner (epicanthus), filled, so the eye looks almond and wide-set
+        const inner = (i === 0 ? 1 : -1) * (side ? s : 1);
+        ctx.save(); shape(); ctx.clip(); ctx.fillStyle = L.skin; ctx.beginPath(); ctx.moveTo(inner * w * .25, -hh * 1.4); ctx.quadraticCurveTo(inner * w * .78, -hh * .55, inner * w * 1.05, hh * .5); ctx.lineTo(inner * w * 1.3, hh); ctx.lineTo(inner * w * 1.3, -hh * 1.5); ctx.closePath(); ctx.fill(); ctx.restore();
+        ctx.lineWidth = .032 * r; ctx.strokeStyle = 'rgba(90,50,35,0.7)'; ctx.beginPath(); ctx.moveTo(inner * w * .25, -hh * 1.4); ctx.quadraticCurveTo(inner * w * .78, -hh * .55, inner * w * 1.05, hh * .5); ctx.stroke();
+        ctx.lineWidth = .05 * r; ctx.strokeStyle = TSC.ink;
+      }
       ctx.beginPath(); ctx.moveTo(-w, 0); ctx.bezierCurveTo(-w * .5, -hh * up, w * .5, -hh * up, w, 0); ctx.stroke();
       // a small fold of skin over the inner corner
       const inner = (i === 0 ? 1 : -1) * (side ? s : 1); ctx.lineWidth = .03 * r; ctx.strokeStyle = 'rgba(90,50,35,0.55)';
@@ -165,6 +184,7 @@ function guy(ctx, x, y, h, p = {}, L = window.HERO || SUIT) {
   const smile = p.smile ?? (ds && e === 'dot' ? .3 : 0);  // a kind face at rest
   ctx.fillStyle = L.mouth;
   if (m > .05) { ell(ctx, mx, my, (.06 + .05 * m) * r, (.04 + .12 * m) * r); ctx.fill(); }
+  else if (smile && L.restMouth === 'open' && p.smile == null) { ctx.beginPath(); ctx.moveTo(mx - .1 * r, my - .03 * r); ctx.lineTo(mx + .1 * r, my - .03 * r); ctx.quadraticCurveTo(mx + .08 * r, my + .09 * r, mx, my + .09 * r); ctx.quadraticCurveTo(mx - .08 * r, my + .09 * r, mx - .1 * r, my - .03 * r); ctx.fill(); }
   else if (smile && L.openSmile) { ctx.beginPath(); ctx.moveTo(mx - .14 * r, my - .05 * r); ctx.lineTo(mx + .14 * r, my - .05 * r); ctx.quadraticCurveTo(mx + .12 * r, my + .14 * r * (.6 + smile), mx, my + .14 * r * (.6 + smile)); ctx.quadraticCurveTo(mx - .12 * r, my + .14 * r * (.6 + smile), mx - .14 * r, my - .05 * r); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.fillRect(mx - .1 * r, my - .05 * r, .2 * r, .04 * r); }
   else if (smile) { ctx.strokeStyle = L.mouth; ctx.lineWidth = .045 * r; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mx - .13 * r, my - .03 * r); ctx.quadraticCurveTo(mx, my + .1 * r * smile, mx + .13 * r, my - .03 * r); ctx.stroke(); }
   else { ctx.fillRect(mx - .08 * r, my - .015 * r, .16 * r, .032 * r); }
