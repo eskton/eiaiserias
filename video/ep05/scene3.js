@@ -9,17 +9,17 @@ SHOTS.push(
     push(ctx, lt, d, 360, 1000, 1.0, 1.05);
     windowsWall(ctx, t, { chaos: 1, vent: v, lat: clamp((t - c3) / .15), balcony: .6, blat: 0 });
     const p = { face: -1, eyes: 'dot', look: -1, lookY: -.4 };
-    p.armR = guyReach(290, FEET, HN, p, hx + 4, hy + 10, 1); p.armL = [-.3, -.2];
-    guy(ctx, 290, FEET, HN, p);
+    p.armR = guyReach(225, FEET, HN, p, hx + 4, hy + 10, 1); p.armL = [-.3, -.2];
+    guy(ctx, 225, FEET, HN, p);
   } },
   // Закрыл балкон.
   { t0: C(33), trans: 'cut', draw(ctx, lt, d, t) {
     const c = Wd(33, 'закрыл'), k = inout(clamp((t - c) / .4)), bk = .7 * (1 - k), ex = balconyEdge(bk);
     push(ctx, lt, d, 700, 1000, 1.0, 1.05);
     windowsWall(ctx, t, { chaos: .7, lat: 1, balcony: bk, blat: clamp((t - Wd(33, 'балкон') - .1) / .15) });
-    const p = { face: -1, eyes: 'dot', lean: -.08 * (1 - k) };
-    p.armR = guyReach(ex + 175, FEET, HN, p, ex - 4, 1000, 1); p.armL = [-.2, -.1];
-    guy(ctx, ex + 175, FEET, HN, p);
+    const p = { face: -1, eyes: 'dot', lean: -.1 * (1 - k) };
+    p.armR = guyReach(845, FEET, HN, p, ex - 4, 1110, 1); p.armL = [-.2, -.1];
+    guy(ctx, 845, FEET, HN, p);
   } },
   // И задвинул занавески. (the curtains run with the voice's curtain sound, 71.48–72.68)
   { t0: C(34), trans: 'cut', draw(ctx, lt, d, t) {
@@ -65,7 +65,7 @@ SHOTS.push(
           if (pk >= 1) { x.fillStyle = TSC.r; poly(x, [[700, Y(floorY(7)) - 170], [700, Y(floorY(7)) - 70], [640, Y(floorY(7)) - 120]]); x.fill(); }
         }
         // the zombies come in through the street door and start up the stairs
-        for (let i = 0; i < 5; i++) { const p = (t - inK) * .5 - i * .22; if (p < 0) continue; const [zx, zy, f] = stairPos(p); const g = guy(x, zx, Y(zy), 250, zedWalk(t, i, f, .5), ZED); redEyes(x, g, f, 1); }
+        for (let i = 0; i < 5; i++) { const p = (t - inK) * .5 - i * .22; if (p < 0) continue; const [zx, zy, f] = stairPos(p); const g = guy(x, zx, Y(zy), 250, zedWalk(p * 600, 250, f, i), ZED); redEyes(x, g, f, 1); }
       } });
     ctx.restore();
     pill(ctx, 540, 300, 'ДО 7 ЭТАЖА', 'yellow', clamp((t - Wd(37, 'придётся')) / .3), { icon: 'up', size: 44 });
@@ -75,20 +75,20 @@ SHOTS.push(
     const pull = sstep(Wd(38, 'открыть') - .25, Wd(38, 'открыть'), t), hold = Wd(38, 'дверь');
     push(ctx, lt, d, 420, 1050, 1.0, 1.05);
     doorSection(ctx, t, { rattle: pull * (1 - sstep(hold, hold + .5, t)), who: x => {
-      const g2 = guy(x, 120, FEET, 780, zedWalk(t, 4, 1, .25), ZED); redEyes(x, g2, 1, .8);
+      const g2 = guy(x, 120, FEET, 780, Object.assign(zedWalk(0, 780, 1, 4, 0), { lean: .1 + .03 * Math.sin(t * 2), idle: true }), ZED); redEyes(x, g2, 1, .8);
       const p = { face: 1, eyes: 'zed', seed: 2, lean: .08 - pull * .1 * Math.max(0, Math.sin(t * 15)) };
-      p.armR = guyReach(320, FEET, 820, p, 452, 1112, -1, ZED); p.armL = [1.25, -.3];
+      p.armR = guyReach(320, FEET, 820, p, 452, 1175, -1, ZED); p.armL = [1.25, -.3];
       const g = guy(x, 320, FEET, 820, p, ZED); redEyes(x, g, 1, 1);
     } });
     pill(ctx, 790, 300, 'ДВЕРЬ ДЕРЖИТ', 'green', clamp((t - hold) / .25), { icon: 'check', size: 44 });
   } },
   // Никита вернулся на кухню.
   { t0: C(39), trans: 'cut', draw(ctx, lt, d, t) {
-    const k = clamp((t - Wd(39, 'вернулся') + .3) / 1.0), x = lerp(1180, 760, outc(k)), walk = k < 1;
+    const k = clamp((t - Wd(39, 'вернулся') + .3) / 1.0), x = lerp(1180, 760, inout(k));
     push(ctx, lt, d, 600, 1050, 1.0, 1.05);
     kitchen(ctx, t, { time: 18.5, chaos: 1, curtains: 1 });
     kTable(ctx, t, { bowl: false });
-    guy(ctx, x, FEET, HN, walk ? stride(t * 9, -1, .8, { face: -1, eyes: 'dot', idle: false }) : { face: -1, eyes: 'dot', look: -.5 });
+    guy(ctx, x, FEET, HN, walk(1180 - x, HN, -1, { a: sstep(0, .1, k) * (1 - sstep(.85, 1, k)), pose: { eyes: 'dot', look: k >= 1 ? -.5 : 0, idle: k >= 1 } }));
     plan(ctx, 70, 230, [1, 1, 0, 0], 1);
   } },
   // Первым делом он набрал воду.

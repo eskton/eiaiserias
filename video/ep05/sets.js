@@ -6,9 +6,12 @@
 
 // ---------- people ----------
 
-// Nikita, the hero: the tracksuit guy with Down syndrome (guy() draws the face when ds is set: almond eyes slanting up,
-// a rounder, flatter face, a small nose, small low ears, rosy cheeks), a little stockier: shorter arms and legs, a wider body.
-const NIK = Object.assign({}, SUIT, { ds: true, build: { leg: .185, torso: .315, R: .12, upper: .15, fore: .14, tw: 1.18, belly: 1 } });
+// Nikita, the hero: the tracksuit guy with Down syndrome, drawn so it shows: small almond eyes slanting up steeply,
+// wide-set, with the fold over the inner corner; a broad, flat face, a button nose, full cheeks, small low ears; the head
+// low on the shoulders; shorter and stockier, with short arms and legs. He is the episode's default figure (window.HERO).
+const NIK = Object.assign({}, SUIT, { ds: true, dsEyes: 'strong', faceW: 1.16, faceH: .94, headLow: true, earSmall: true, earLow: true, nose: 'button',
+  restMouth: 'open', cheekS: 1.25, build: { leg: .17, torso: .3, R: .13, upper: .14, fore: .13, tw: 1.32, belly: 1, armW: .045, legW: .06 } });
+window.HERO = NIK;
 
 // Passers-by in plain clothes (no stripes), the zombie walk, glowing eyes.
 const FOLK = [
@@ -17,9 +20,12 @@ const FOLK = [
   { skin: '#c99772', skinD: '#ad7d5b', hair: '#1a1210', suit: '#d4a23a', suitD: '#b3862c', stripe: null, shoe: '#2a2a2e', mouth: '#5a1e1e' },
   { skin: '#f0cfae', skinD: '#d6b08e', hair: '#5a3a22', suit: '#6d6a8a', suitD: '#58557a', stripe: null, shoe: '#2a2a2e', mouth: '#5a1e1e' },
 ];
-function zedWalk(t, seed = 0, face = 1, amt = .5) {
-  const sw = Math.sin(t * 3 + seed) * .08;
-  return stride(t * 4.2 + seed, face, amt, { face, eyes: 'zed', lean: .1 * face, seed, armL: [face * (1.4 + sw), -face * .1], armR: [face * (1.3 - sw), -face * .05], head: [.01 * face, .015] });
+// The zombie shuffle: short steps that follow the distance walked (dist px for a figure h tall), one leg dragging,
+// the arms held out in front.
+function zedWalk(dist, h, face = 1, seed = 0, a = .55) {
+  const p = walk(dist, h, face, { a, L: ZED }), sw = Math.sin(dist / h * 4 + seed) * .08;
+  p.legR = [p.legR[0] * .7, p.legR[1] * .6];
+  return Object.assign(p, { eyes: 'zed', seed, lean: .1 * face, armL: [face * (1.4 + sw), -face * .1], armR: [face * (1.3 - sw), -face * .05], head: [.01 * face, .015] });
 }
 // Red eyes over a figure drawn by guy() (g is what it returned), looking to face.
 function redEyes(ctx, g, face, k = 1) {
@@ -77,7 +83,7 @@ function cityFire(ctx, t, o = {}) {
   ctx.fillStyle = 'rgba(255,150,70,0.08)'; ctx.fillRect(0, 1330, W, 60);
   [[90, 1400, .9, 1], [980, 1420, 1.1, 2], [700, 1360, .6, 3]].forEach(([fx, fy, s, sd]) => flame(ctx, t, fx, fy, s, sd));
   if (o.crowd !== 0) [[160, 1450, 1, .9], [300, 1420, -1, .8], [790, 1440, -1, .95], [920, 1480, -1, 1.05], [620, 1405, 1, .7]].forEach(([zx, zy, f, sc], i) => {
-    const g = guy(ctx, zx + Math.sin(t * .6 + i) * 30 * f, zy, 330 * sc, zedWalk(t, i * 1.7, f, .45), ZED);
+    const g = guy(ctx, zx + f * 28 * t, zy, 330 * sc, zedWalk(28 * t + i * 50, 330 * sc, f, i, .45), ZED);
     redEyes(ctx, g, f, .9);
   });
   tint(ctx, '#ff7a3a', .1 + .25 * (o.flash || 0), 'screen');
@@ -262,24 +268,26 @@ function kitchen(ctx, t, o = {}) {
   ctx.fillStyle = '#b5683e'; ctx.fillRect(784, 682, 40, 38); ctx.fillStyle = '#4f8a4a'; for (const [dx, dy] of [[-14, -30], [0, -44], [16, -32]]) { ell(ctx, 804 + dx, 682 + dy, 12, 22, dx * .02); ctx.fill(); }
   // the doorway on the right and the light switch next to it
   ctx.fillStyle = '#9c8f78'; ctx.fillRect(976, 560, 400, FLOOR - 560); ctx.fillStyle = '#e4ded0'; ctx.fillRect(950, 540, 30, FLOOR - 540); ctx.fillRect(950, 540, 400, 24);
-  const sw = clamp(o.switch || 0); ctx.fillStyle = '#f4f2ec'; rrect(ctx, 898, 980, 38, 54, 6); ctx.fill(); ctx.fillStyle = '#d9d5ca'; ctx.fillRect(906, 990 + sw * 16, 22, 18);
+  const sw = clamp(o.switch || 0); ctx.fillStyle = '#f4f2ec'; rrect(ctx, 898, 1040, 38, 54, 6); ctx.fill(); ctx.fillStyle = '#d9d5ca'; ctx.fillRect(906, 1050 + sw * 16, 22, 18);
 }
 
-// The kitchen table, top at y = 1190 (between Nikita's hip and shoulder when he sits): o.bowl (false: none), steam.
+// The kitchen table, top at y = TABLE (about Nikita's waist when he sits): o.bowl (false: none), steam.
+const TABLE = 1300;
 function kTable(ctx, t, o = {}) {
+  const ty = TABLE;
   ctx.fillStyle = 'rgba(0,0,0,0.16)'; ell(ctx, 730, 1552, 190, 14); ctx.fill();
-  ctx.fillStyle = '#6f5238'; ctx.fillRect(580, 1210, 18, 340); ctx.fillRect(862, 1210, 18, 340);
-  ctx.fillStyle = '#8a6a48'; ctx.fillRect(556, 1190, 348, 24); ctx.fillStyle = '#9c7b56'; ctx.fillRect(556, 1190, 348, 6);
+  ctx.fillStyle = '#6f5238'; ctx.fillRect(580, ty + 20, 18, FEET - 10 - ty - 20); ctx.fillRect(862, ty + 20, 18, FEET - 10 - ty - 20);
+  ctx.fillStyle = '#8a6a48'; ctx.fillRect(556, ty, 348, 24); ctx.fillStyle = '#9c7b56'; ctx.fillRect(556, ty, 348, 6);
   if (o.bowl !== false) {
-    ctx.fillStyle = '#e8d3a0'; ell(ctx, 660, 1160, 50, 10); ctx.fill();
-    ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(606, 1160); ctx.quadraticCurveTo(612, 1190, 660, 1190); ctx.quadraticCurveTo(708, 1190, 714, 1160); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#3f6fb8'; ctx.fillRect(610, 1168, 100, 5);
-    if (o.steam) for (let i = 0; i < 3; i++) { const u = (t * .5 + i / 3) % 1; ctx.strokeStyle = `rgba(255,255,255,${.4 * (1 - u)})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(640 + i * 20, 1140 - u * 90); ctx.quadraticCurveTo(650 + i * 20, 1118 - u * 90, 640 + i * 20, 1096 - u * 90); ctx.stroke(); }
+    ctx.fillStyle = '#e8d3a0'; ell(ctx, 660, ty - 30, 50, 10); ctx.fill();
+    ctx.fillStyle = '#eef0f2'; ctx.beginPath(); ctx.moveTo(606, ty - 30); ctx.quadraticCurveTo(612, ty, 660, ty); ctx.quadraticCurveTo(708, ty, 714, ty - 30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3f6fb8'; ctx.fillRect(610, ty - 22, 100, 5);
+    if (o.steam) for (let i = 0; i < 3; i++) { const u = (t * .5 + i / 3) % 1; ctx.strokeStyle = `rgba(255,255,255,${.4 * (1 - u)})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(640 + i * 20, ty - 50 - u * 90); ctx.quadraticCurveTo(650 + i * 20, ty - 72 - u * 90, 640 + i * 20, ty - 94 - u * 90); ctx.stroke(); }
   }
 }
-// The chair Nikita sits on, facing left (drawn before him); x = where his feet are.
-function kChair(ctx, x = 820) {
-  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(x + 40, 1070, 14, FEET - 1070); ctx.fillRect(x - 60, 1340, 114, 14); ctx.fillRect(x - 56, 1354, 12, FEET - 1354);
+// The chair Nikita sits on, facing left (drawn before him); x = where his feet are, the seat at his sitting height.
+function kChair(ctx, x = 820, seat = guySeat(FEET, HN)) {
+  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(x + 40, seat - 280, 14, FEET - seat + 280); ctx.fillRect(x - 60, seat, 114, 14); ctx.fillRect(x - 56, seat + 14, 12, FEET - seat - 14);
 }
 
 // ---------- the street below the window ----------
@@ -422,7 +430,7 @@ function outbreakMap(ctx, t, k, home = 1) {
 // coats on hooks, a wall lamp. o: lockK (0..1 the thumb-turn turned), handle (0..1 pressed), shake (0..1), wardrobe
 // (0..1 slid in front of the door), table (0..1), items (seconds since each of the five things landed, or null),
 // ring (0..1 a dashed frame round the door), lockRing (0..1 round the lock).
-const DOOR = { x: 340, y: 610, w: 320, lock: [612, 1010], handle: [612, 1110] };
+const DOOR = { x: 340, y: 610, w: 320, lock: [612, 1085], handle: [612, 1175] };
 function hallway(ctx, t, o = {}) {
   roomBox(ctx, '#c4b49a', null, '#7a644f');
   // coats on the hooks, shoes, the wall lamp
@@ -523,7 +531,7 @@ function doorSection(ctx, t, o = {}) {
   const rt = o.rattle ? Math.sin(t * 50) * 5 * o.rattle : 0;
   ctx.save(); ctx.translate(rt, 0);
   ctx.fillStyle = '#3e2418'; ctx.fillRect(480, DOOR.y, 44, FLOOR - DOOR.y); ctx.fillStyle = '#8a8f94'; ctx.fillRect(477, DOOR.y, 6, FLOOR - DOOR.y); ctx.fillRect(521, DOOR.y, 6, FLOOR - DOOR.y);
-  ctx.fillStyle = '#b9bec4'; rrect(ctx, 424, 1104, 56, 16, 8); ctx.fill(); rrect(ctx, 524, 1104, 56, 16, 8); ctx.fill();
+  ctx.fillStyle = '#b9bec4'; rrect(ctx, 424, 1167, 56, 16, 8); ctx.fill(); rrect(ctx, 524, 1167, 56, 16, 8); ctx.fill();
   ctx.restore();
   // the barricade pressed against the door: the wardrobe side-on, the table, the pile
   ctx.save(); ctx.translate(rt * .4, 0);
@@ -551,7 +559,7 @@ function windowsWall(ctx, t, o = {}) {
   ctx.fillStyle = '#ecebe6'; ctx.fillRect(x + w / 2 - 7, y, 14, h); ctx.fillRect(x, y + 180, w, 12);
   const v = clamp(o.vent || 0), fx = x + 16 + (w / 2 - 23) * (1 - .7 * v);
   if (v > 0) { ctx.fillStyle = '#ecebe6'; poly(ctx, [[x + 16, y + 16], [fx, y + 16 - 30 * v], [fx, y + h - 16 + 30 * v], [x + 16, y + h - 16]]); ctx.fill(); ctx.fillStyle = 'rgba(160,190,210,0.45)'; poly(ctx, [[x + 28, y + 28], [fx - 12, y + 28 - 26 * v], [fx - 12, y + h - 28 + 26 * v], [x + 28, y + h - 28]]); ctx.fill(); }
-  ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(fx - 18, y + 390); ctx.rotate((1 - clamp(o.lat ?? 1)) * Math.PI / 2); ctx.fillRect(-5, -30, 10, 60); ctx.restore();
+  ctx.fillStyle = '#c8c3b8'; ctx.save(); ctx.translate(fx - 18, y + 450); ctx.rotate((1 - clamp(o.lat ?? 1)) * Math.PI / 2); ctx.fillRect(-5, -30, 10, 60); ctx.restore();
   ctx.fillStyle = '#efece6'; ctx.fillRect(x - 20, y + h, w + 40, 26); ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(x - 12, y + h + 26, w + 24, 9);
   ctx.fillStyle = '#e2e2de'; for (let i = 0; i < 8; i++) { rrect(ctx, x + 30 + i * 38, y + h + 70, 30, 170, 10); ctx.fill(); }
   // the balcony door and its window
@@ -567,7 +575,7 @@ function windowsWall(ctx, t, o = {}) {
   if (o.curtains != null) { curtainPair(ctx, x - 30, y - 30, w + 60, h + 90, o.curtains, '#5f7d6e'); curtainPair(ctx, bx - 20, y - 30, bw + 40, FLOOR - y + 26, o.curtains, '#5f7d6e'); }
 }
 // Where Nikita's hand goes to shut things: the window sash handle and the balcony door's free edge.
-const sashHandle = v => [WIN.x + 16 + (WIN.w / 2 - 23) * (1 - .7 * v) - 18, WIN.y + 390];
+const sashHandle = v => [WIN.x + 16 + (WIN.w / 2 - 23) * (1 - .7 * v) - 18, WIN.y + 450];
 const balconyEdge = bk => BAL.x + 16 + BAL.door * (1 - .55 * bk);
 
 // ---------- water and food ----------
@@ -691,8 +699,8 @@ function plan(ctx, x, y, done, k = 1, gap = 80, size = 34) {
 // Nikita's flat in the block section (floor 7, ceiling at c): the table, the chair, the barricade at the door.
 // o: barricade (0..1), dark (0..1), who(ctx, floorY) draws Nikita.
 function flat7(ctx, t, c, o = {}) {
-  const f = c + FH;
-  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(600, f - 190, 10, 170); ctx.fillRect(540, f - 100, 70, 10); ctx.fillRect(544, f - 92, 8, 70);
+  const f = c + FH, seat = guySeat(f - 26, 250);
+  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(600, seat - 90, 10, f - 26 - seat + 90); ctx.fillRect(540, seat, 70, 8); ctx.fillRect(544, seat + 8, 8, f - 34 - seat);
   ctx.fillStyle = '#6f5238'; ctx.fillRect(390, f - 104, 10, 80); ctx.fillRect(510, f - 104, 10, 80); ctx.fillStyle = '#8a6a48'; ctx.fillRect(376, f - 112, 160, 12);
   ctx.fillStyle = '#eef0f2'; ell(ctx, 430, f - 118, 20, 8); ctx.fill();
   if (o.who) o.who(ctx, f - 26);

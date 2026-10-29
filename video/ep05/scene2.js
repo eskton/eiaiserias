@@ -2,10 +2,11 @@
 // the wardrobe, the table and the pile, the barricade holds, the lock checked again.
 'use strict';
 
-// Nikita pushing something along the floor to the left, his hands on its right edge at height hy.
-function pushing(ctx, t, edge, hy, moving, extra = {}) {
-  const fx = edge + 175, p = stride(moving ? t * 7 : 0, -1, .55, Object.assign({ face: -1, eyes: moving ? 'closed' : 'dot', lean: -.2, idle: false, mouth: .1 }, extra));
-  p.armR = guyReach(fx, FEET, HN, p, edge + 4, hy, 1); p.armL = guyReach(fx, FEET, HN, p, edge + 4, hy - 40, 1);
+// Nikita pushing something along the floor to the left, his hands on its right edge at height hy; his steps follow the
+// distance it has moved (dist). o.off: how far behind the edge he stands, o.lean.
+function pushing(ctx, t, edge, hy, dist, moving, o = {}) {
+  const fx = edge + (o.off || 175), p = walk(dist, HN, -1, { a: moving ? .6 : 0, pose: { eyes: moving ? 'closed' : 'dot', lean: o.lean ?? -.22, mouth: .1 } });
+  p.armR = guyReach(fx, FEET, HN, p, edge + 4, hy, 1); p.armL = guyReach(fx, FEET, HN, p, edge + 4, hy - 34, 1);
   guy(ctx, fx, FEET, HN, p);
 }
 
@@ -40,7 +41,7 @@ SHOTS.push(
     const turn = sstep(Wd(22, 'посмотрел') - .1, Wd(22, 'посмотрел') + .2, t);
     push(ctx, lt, d, 560, 1050, 1.0, 1.06);
     hallway(ctx, t, { ring: clamp((t - Wd(22, 'дверь')) / .3) });
-    guy(ctx, 860, FEET, HN, { face: turn > .5 ? -1 : 0, eyes: 'wide', look: turn > .5 ? -1 : 0, lookY: -.1 });
+    guy(ctx, 860, FEET, HN, { face: turn > .5 ? -1 : 0, eyes: Math.abs(turn - .5) < .2 ? 'closed' : 'wide', look: turn > .5 ? -1 : 0, lookY: -.1 });  // a blink hides the turn
   } },
   // Потом на окна.
   { t0: C(23), trans: 'cut', draw(ctx, lt, d, t) {
@@ -85,7 +86,7 @@ SHOTS.push(
     ctx.save(); ctx.translate(sx, sy);
     push(ctx, lt, d, 640, 1100, .92, .95);
     hallway(ctx, t, { lockK: 1, wardrobe: (1150 - bx) / 800 });
-    pushing(ctx, t, bx + 300, 1150, moving);
+    pushing(ctx, t, bx + 300, 1150, 760 - bx, moving);
     if (moving) for (let i = 0; i < 4; i++) { const u = (t * 2 + i / 4) % 1; ctx.fillStyle = `rgba(200,190,170,${.45 * (1 - u)})`; ell(ctx, bx + 40 + i * 75, 1522 - u * 40, 22 + u * 30, 12 + u * 14); ctx.fill(); }
     ctx.restore();
     pill(ctx, 540, 300, 'ТЯЖЁЛЫЙ ШКАФ', 'yellow', clamp((t - Wd(27, 'тяжёлый')) / .25), { size: 44 });
@@ -97,7 +98,7 @@ SHOTS.push(
     ctx.save(); ctx.translate(sx, sy);
     push(ctx, lt, d, 640, 1100, .92, .95);
     hallway(ctx, t, { lockK: 1, wardrobe: 1, table: (1200 - tx) / 870 });
-    pushing(ctx, t, tx + 340, 1290, k > 0 && k < 1, { crouch: .25 });
+    pushing(ctx, t, tx + 340, 1290, 860 - tx, k > 0 && k < 1, { off: 150, lean: -.45 });
     ctx.restore();
   } },
   // Сверху поставил ещё несколько тяжёлых предметов.

@@ -5,15 +5,17 @@
 var XFADE = 0, END = 124;
 const CARD = 120.45;  // the end card starts here
 window.OVERLAY = (ctx, t) => { if (t < CARD) fatCaps(ctx, t); };  // the end card speaks for itself
-window.POST = { drift: .35, bloom: .18, grain: .045, lift: .12, paper: .3 };
+window.POST = { drift: 0, bloom: .18, grain: .045, lift: .12, paper: .3 };  // a steady camera, as in the reference
 
 // Nikita at the kitchen table, eating: ph = 0 the spoon in the bowl, 1 at his mouth. Extra pose fields in o.
+// Where his mouth is comes from his build (sitting: thighs level, the head low on the shoulders).
 const EAT = { x: 820, y: FEET, h: HN };
+const EAT_MOUTH = (() => { const B = guyBuild(NIK), hip = FEET - (B.leg * 1.07 + .012) * HN, hy = hip - B.torso * HN - .64 * B.R * HN, r = B.R * HN; return [EAT.x - .64 * r, hy + .52 * r]; })();
 function eating(ctx, t, ph, o = {}) {
   const p = Object.assign({ face: -1, sit: 1, eyes: 'happy' }, o), { x, y, h } = EAT;
   const stir = ph <= 0 && o.stir ? [Math.cos(t * 4) * 10, Math.sin(t * 4) * 3] : [0, 0];
   // the spoon tip: in the bowl or at his mouth; the hand holds the spoon about 90 px behind its tip
-  const tipB = [652 + stir[0], 1150 + stir[1]], aB = Math.PI / 2 + .5, tipM = [770, 1066], aM = -.15;
+  const tipB = [652 + stir[0], TABLE - 38 + stir[1]], aB = Math.PI / 2 + .5, tipM = [EAT_MOUTH[0] + 8, EAT_MOUTH[1] - 2], aM = -.15;
   const tip = [lerp(tipB[0], tipM[0], ph), lerp(tipB[1], tipM[1], ph) - Math.sin(Math.PI * ph) * 40], a = lerp(aB, aM, ph);
   const hand = [tip[0] - Math.cos(a) * 88, tip[1] - Math.sin(a) * 88];
   if (o.spoon !== false) { p.armR = guyReach(x, y, h, p, hand[0], hand[1], 1); p.hold = (c, hd) => spoon(c, hd, a, 1.05); }
@@ -28,14 +30,14 @@ function eating(ctx, t, ph, o = {}) {
 // Each walker: [feet y, x at t0, speed px/s, palette (FOLK index or 'z'), seed, scale].
 function walkers(ctx, t, t0, list, o = {}) {
   list.forEach(([wy, x0, v, pal, seed, sc], i) => {
-    const zed = pal === 'z', L = zed ? ZED : FOLK[pal % FOLK.length], f = v < 0 ? -1 : 1, run = Math.abs(v) > 150;
-    let x = x0 + v * (t - t0), rot = 0;
-    if (o.fall && o.fall[0] === i) { const tf = o.fall[1], k = clamp((t - tf) / .3); x = x0 + v * (Math.min(t, tf) - t0) + v * .15 * k; rot = f * 1.45 * inc(k); }
+    const zed = pal === 'z', L = zed ? ZED : FOLK[pal % FOLK.length], f = v < 0 ? -1 : 1, run = Math.abs(v) > 150, hh = 300 * sc;
+    let x = x0 + v * (t - t0), rot = 0, dist = Math.abs(v) * (t - t0) + seed * 37;
+    if (o.fall && o.fall[0] === i) { const tf = o.fall[1], k = clamp((t - tf) / .3); x = x0 + v * (Math.min(t, tf) - t0) + v * .15 * k; dist = Math.abs(v) * (Math.min(t, tf) - t0) + seed * 37; rot = f * 1.45 * inc(k); }
     if (x < -200 || x > W + 200) return;
     ctx.save(); ctx.translate(x, wy); ctx.rotate(rot); ctx.translate(-x, -wy);
-    const pose = zed ? zedWalk(t, seed, f, .5) : stride(t * (run ? 13 : 6) + seed, f, run ? 1 : .55, { face: f, idle: false, lean: run ? .16 * f : 0, eyes: run ? 'wide' : 'dot', mouth: run ? .45 : 0, seed });
+    const pose = zed ? zedWalk(dist, hh, f, seed) : walk(dist, hh, f, { run, a: run ? 1 : .7, L, pose: { eyes: run ? 'wide' : 'dot', mouth: run ? .45 : 0, seed } });
     if (rot) { pose.eyes = 'closed'; pose.legL = [.1 * f, 0]; pose.legR = [-.1 * f, 0]; pose.noShadow = true; }
-    const g = guy(ctx, x, wy, 300 * sc, pose, L);
+    const g = guy(ctx, x, wy, hh, pose, L);
     ctx.restore();
     if (zed && o.eyes) redEyes(ctx, g, f, o.eyes);
   });
@@ -113,11 +115,11 @@ SHOTS.push(
     street(ctx, t, { chaos: k, draw: x => {
       // before: people stroll both ways; after: everyone runs left
       [[1040, 200, 1], [1060, 520, -1], [1030, 860, -1], [600, 300, 1], [610, 820, -1]].forEach(([wy, x0, f], i) => {
-        const run = clamp((t - go - i * .08) / .2), px = x0 + (Math.min(t, go) - C(8)) * 50 * f + Math.max(0, t - go) * -420 * run;
-        const sc = wy < 700 ? .65 : 1, ff = run > .5 ? -1 : f;
-        guy(x, px, wy, 300 * sc, stride(t * (run > .5 ? 13 : 6) + i, ff, run > .5 ? 1 : .5, { face: ff, idle: false, lean: run * -.16, eyes: run > .5 ? 'wide' : 'dot', mouth: run * .45, seed: i }), FOLK[i % 4]);
+        const run = clamp((t - go - i * .08) / .2), tr = Math.max(0, t - go - i * .08), px = x0 + (Math.min(t, go) - C(8)) * 50 * f - 420 * tr;
+        const sc = wy < 700 ? .65 : 1, ff = run > .5 ? -1 : f, dist = 50 * (Math.min(t, go) - C(8)) + 420 * tr + i * 40;
+        guy(x, px, wy, 300 * sc, walk(dist, 300 * sc, ff, { run: run > .5, a: run > .5 ? 1 : .6, L: FOLK[i % 4], pose: { eyes: run > .5 ? 'wide' : 'dot', mouth: run * .45, seed: i } }), FOLK[i % 4]);
       });
-      if (t > go) [[1050, 1180, 1], [600, 1150, 2]].forEach(([wy, x0, sd]) => guy(x, x0 - (t - go) * 90, wy, wy < 700 ? 200 : 300, zedWalk(t, sd, -1), ZED));
+      if (t > go) [[1050, 1180, 1], [600, 1150, 2]].forEach(([wy, x0, sd]) => guy(x, x0 - (t - go) * 90, wy, wy < 700 ? 200 : 300, zedWalk((t - go) * 90, wy < 700 ? 200 : 300, -1, sd), ZED));
     } });
     ctx.restore();
     if (t > go) { tint(ctx, '#ffd0a0', .35 * Math.exp(-(t - go) * 6), 'screen'); sfxWord(ctx, t, go, 'БАХ!', 300, 640, 100, TSC.y, 1.2); }
@@ -125,11 +127,11 @@ SHOTS.push(
   } },
   // Никита подошёл к окну.
   { t0: C(9), trans: 'cut', draw(ctx, lt, d, t) {
-    const a = Wd(9, 'подошёл'), b = Wd(9, 'окну') + .1, k = clamp((t - a + .2) / (b - a + .2)), x = lerp(780, 530, inout(k)), walk = k > 0 && k < 1;
+    const a = Wd(9, 'подошёл'), b = Wd(9, 'окну') + .1, k = clamp((t - a + .2) / (b - a + .2)), x = lerp(780, 530, inout(k));
     push(ctx, lt, d, 520, 1000, 1.0, 1.06);
     kitchen(ctx, t, { time: 8.1, chaos: .8 });
     kChair(ctx, 820); kTable(ctx, t, { steam: 1 });
-    guy(ctx, x, FEET, HN, walk ? stride(t * 9, -1, .8, { face: -1, eyes: 'wide', idle: false }) : { face: -1, eyes: 'wide', look: -1, lookY: .3 });
+    guy(ctx, x, FEET, HN, walk(780 - x, HN, -1, { a: sstep(0, .12, k) * (1 - sstep(.88, 1, k)), pose: { eyes: 'wide', look: -1, lookY: k > .9 ? .3 : 0, idle: k >= 1 } }));
   } },
   // Люди бежали по улице. Кто-то падал.
   { t0: C(10), trans: 'cut', draw(ctx, lt, d, t) {
@@ -151,12 +153,12 @@ SHOTS.push(
   } },
   // Никита сразу отошёл от окна.
   { t0: C(13), trans: 'cut', draw(ctx, lt, d, t) {
-    const a = Wd(13, 'отошёл') - .25, k = clamp((t - a) / .7), x = lerp(530, 760, outc(k)), walk = k > 0 && k < 1, sr = 1 - sstep(25.9, 26.8, t);
+    const a = Wd(13, 'отошёл') - .25, k = clamp((t - a) / .7), x = lerp(530, 760, outc(k)), sr = 1 - sstep(25.9, 26.8, t);
     push(ctx, lt, d, 520, 1000, 1.05, 1.0);
     kitchen(ctx, t, { time: 8.1, chaos: 1, siren: sr * .7 });
     glow(ctx, 290, 700, 420, Math.sin(t * 8) > 0 ? 'rgba(255,60,60,1)' : 'rgba(60,110,255,1)', .1 * sr);
     kChair(ctx, 820); kTable(ctx, t, {});
-    guy(ctx, x, FEET, HN, walk ? stride(-t * 10, -1, .6, { face: -1, eyes: 'wide', mouth: .4, idle: false, lean: .1 }) : { face: -1, eyes: 'wide', mouth: .3, look: -1 });
+    guy(ctx, x, FEET, HN, walk(x - 530, HN, -1, { back: true, a: sstep(0, .1, k) * (1 - sstep(.8, 1, k)), pose: { eyes: 'wide', mouth: .35, look: -1, idle: k >= 1 } }));
   } },
   // Он понял, что это уже не обычная авария.
   { t0: C(14), trans: 'cut', draw(ctx, lt, d, t) {

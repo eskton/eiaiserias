@@ -23,7 +23,8 @@ const guyBuild = L => L.build ? Object.assign({}, GB, L.build) : GB;
 function guyFrame(p, idle = false, now = 0, seed = 0, B = GB) {
   const crouch = p.crouch || 0, floor = p.sit === 'floor';
   const lean = (p.lean || 0) + (idle ? Math.sin(now * 1.7 + seed) * .01 : 0);
-  const hip = [p.dx || 0, p.hipY ?? (floor ? -.07 : p.sit ? -.27 : -(2 * B.leg + .02) * (1 - crouch * .4))];
+  // sitting on a chair: thighs level, shins straight down to the floor; on the floor: the seat on the ground
+  const hip = [p.dx || 0, p.hipY ?? (floor ? -(B.leg * .12 + .018) : p.sit ? -(B.leg * 1.07 + .012) : -(2 * B.leg + .02) * (1 - crouch * .4))];
   const breath = idle ? Math.sin(now * 2.4 + seed) * .004 : 0;
   const sh = [hip[0] + Math.sin(lean) * B.torso, hip[1] - Math.cos(lean) * B.torso - breath];
   return { hip, sh, lean, crouch, floor };
@@ -201,6 +202,35 @@ function guyReach(x, y, h, p, tx, ty, bend = 1, L = window.HERO || SUIT) {
   const dd = Math.hypot(dx, dy) || 1e-6, d = Math.min(dd, L1 + L2 - 1e-4), ux = dx / dd, uy = dy / dd;
   const al = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1)), as = Math.atan2(dx, dy) + bend * al;
   return [as, Math.atan2(ux * d - Math.sin(as) * L1, uy * d - Math.cos(as) * L1) - as];
+}
+
+// Where things are for a figure of height h with its feet at (x, y), drawn with palette L.
+const guySeat = (y, h, L = window.HERO || SUIT) => y - (guyBuild(L).leg * 1.07 + .012) * h + .03 * h;  // a chair's seat top
+function guyKnee(x, y, h, face, L = window.HERO || SUIT) {  // the knee of someone sitting on the floor, knees up
+  const B = guyBuild(L), s = face || 1, hy = -(B.leg * .12 + .018), a = s * (Math.PI - .62);
+  return [x + (s * .012 + Math.sin(a) * B.leg) * h, y + (hy + Math.cos(a) * B.leg) * h];
+}
+
+// A walk that does not slide: the phase follows the distance walked (dist in px, h the figure's height), so the foot on
+// the ground stays put; the body dips as the legs open and rises as they pass. o: a (0..1, step size, to start and
+// stop), back (walking backwards), run, L (the palette, for the build), plus any pose fields to merge.
+function walk(dist, h, face = 1, o = {}) {
+  const B = guyBuild(o.L || window.HERO || SUIT), a = clamp(o.a ?? 1), sw = (o.run ? .5 : .36) * a + 1e-4, f = face || 1;
+  const step = 4 * B.leg * Math.sin(sw), ph = Math.PI * dist / (step * h) * (o.back ? -1 : 1), sn = Math.sin(ph), c = Math.cos(ph);
+  const pose = {
+    face: f, idle: false, lean: (o.run ? .16 : o.back ? -.03 : .04) * f * a,
+    legL: [sw * sn * f, -(o.run ? 1.4 : .9) * Math.max(0, c) * f * a], legR: [-sw * sn * f, -(o.run ? 1.4 : .9) * Math.max(0, -c) * f * a],
+    armL: [-(o.run ? .7 : .32) * sn * f * a, (o.run ? 1.3 : .25) * f], armR: [(o.run ? .7 : .32) * sn * f * a, (o.run ? 1.3 : .25) * f],
+    hipY: -(2 * B.leg * Math.cos(sw * Math.abs(sn)) + .02),
+  };
+  return Object.assign(pose, o.pose || {});
+}
+
+// Sitting down on the floor, knees up: k = 0 standing, 1 seated (the legs fold while the seat drops).
+function sitDown(k, face = 1, L = window.HERO || SUIT, extra = {}) {
+  const B = guyBuild(L), s = face || 1, u = inout(clamp(k));
+  const hip = lerp(-(2 * B.leg + .02), -(B.leg * .12 + .018), u);
+  return Object.assign({ face: s, hipY: hip, legL: [s * (Math.PI - .62) * u - s * .04 * u, -s * 2.15 * u], legR: [s * (Math.PI - .62) * u, -s * 2.15 * u], lean: s * .06 * Math.sin(Math.PI * u) }, extra);
 }
 
 // A walking pose for guy(): legs and arms swing with phase ph.

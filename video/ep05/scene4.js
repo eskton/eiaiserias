@@ -20,7 +20,11 @@ function silentCard(ctx, t, k, show) {
 
 // Nikita on the hallway floor, his back to the wall, knees up, arms round them.
 const SITTER = { x: 880, h: HN };
-const sitting = (extra = {}) => Object.assign({ face: -1, sit: 'floor', eyes: 'wide', look: -1, lookY: -.2, armR: [-1.25, -1.5], armL: [-1.05, -1.6] }, extra);
+function sitting(x = SITTER.x, h = SITTER.h, extra = {}) {
+  const p = Object.assign({ face: -1, sit: 'floor', eyes: 'wide', look: -1, lookY: -.2 }, extra), [kx, ky] = guyKnee(x, FEET, h, -1);
+  p.armR = guyReach(x, FEET, h, p, kx - .02 * h, ky + .03 * h, 1); p.armL = guyReach(x, FEET, h, p, kx + .005 * h, ky + .05 * h, 1);
+  return p;
+}
 
 // Knocks on the door, seen from the hallway in the dark: the barricade shakes on each knock (kn = times), a word for
 // each (o.word, 'ТУК' by default); o.hard for harder ones.
@@ -29,7 +33,7 @@ function knocking(ctx, t, lt, d, kn, o = {}) {
   ctx.save(); ctx.translate(sx, sy);
   push(ctx, lt, d, 600, 1100, 1.0, 1.04);
   hallway(ctx, t, { lockK: 1, wardrobe: 1, table: 1, items: [9, 9, 9, 9, 9], shake: Math.min(1, sh * (o.hard ? 1.3 : 1)), lamp: 0 });
-  guy(ctx, SITTER.x, FEET, SITTER.h, sitting({ shake: sh * 3, idle: false }));
+  guy(ctx, SITTER.x, FEET, SITTER.h, sitting(SITTER.x, SITTER.h, { shake: sh * 3, idle: false, head: [0, -.012 * Math.min(1, sh)] }));  // he flinches at each knock
   // dust falling from the top of the door frame
   kn.forEach(k => { const a = t - k; if (a < 0 || a > 1.2) return; const r = rng(Math.floor(k * 100)); for (let i = 0; i < 12; i++) { ctx.fillStyle = `rgba(210,200,180,${.6 * (1 - a / 1.2)})`; ell(ctx, DOOR.x + r() * DOOR.w, DOOR.y + a * a * 500 * (.6 + r() * .6), 3, 3); ctx.fill(); } });
   darkness(ctx, 1, [640, 1150, 760]);
@@ -44,7 +48,7 @@ SHOTS.push(
     push(ctx, lt, d, 820, 1050, 1.18, 1.24);
     kitchen(ctx, t, { time: 21.6, night: 1, chaos: 1, curtains: 1, switch: t > off ? 1 : 0 });
     kTable(ctx, t, { bowl: false });
-    p.armR = guyReach(780, FEET, HN, p, lerp(800, 912, k), lerp(1180, 1000 + (t > off ? 12 : 0), k), -1);
+    p.armR = guyReach(780, FEET, HN, p, lerp(800, 912, k), lerp(1200, 1062 + (t > off ? 12 : 0), k), -1);
     guy(ctx, 780, FEET, HN, p);
     if (t > off) darkness(ctx, 1, null);
     sfxWord(ctx, t, off, 'ЩЁЛК', 930, 860, 70, TSC.y, .9);
@@ -60,7 +64,7 @@ SHOTS.push(
   { t0: C(52), trans: 'cut', draw(ctx, lt, d, t) {
     push(ctx, lt, d, 540, 700, 1.0, 1.05);
     facade(ctx, t, { mark: clamp((lt - .2) / .4), draw: x => {
-      [[120, 1, 0], [420, -1, 1], [700, 1, 2], [960, -1, 3]].forEach(([zx, f, i]) => { const g = guy(x, zx + Math.sin(t * .7 + i) * 60, 1840, 260, zedWalk(t, i, f), ZED); redEyes(x, g, f, 1); });
+      [[120, 1, 0], [420, -1, 1], [700, 1, 2], [960, -1, 3]].forEach(([zx, f, i]) => { const go = 35 * (t - C(52)); const g = guy(x, zx + f * go, 1840, 260, zedWalk(go + i * 30, 260, f, i), ZED); redEyes(x, g, f, 1); });
     } });
     pill(ctx, 435, 380, 'НИКИТА', 'yellow', clamp((lt - .3) / .3), { size: 30 });
     [[103.9, 'А-А-А!', 260, 1480], [104.4, 'А-А!', 820, 1440], [104.85, 'ПОМОГИТЕ!', 540, 1560]].forEach(([s, w, x, y]) => sfxWord(ctx, t, s, w, x, y, 56, TSC.r, 1.0));
@@ -82,11 +86,12 @@ SHOTS.push(
   } },
   // Никита сел подальше от окон.
   { t0: C(55), trans: 'cut', draw(ctx, lt, d, t) {
-    const a = Wd(55, 'сел') - .4, k = clamp((t - a) / .9), x = lerp(1180, SITTER.x, outc(k)), down = Wd(55, 'окон') - .3, sit = t > down;
+    const a = Wd(55, 'сел') - .45, k = clamp((t - a) / .8), x = lerp(1180, SITTER.x, inout(k)), sk = clamp((t - a - .82) / .5);
     push(ctx, lt, d, 640, 1100, 1.0, 1.04);
     hallway(ctx, t, { lockK: 1, wardrobe: 1, table: 1, items: [9, 9, 9, 9, 9], lamp: 0 });
-    if (sit) guy(ctx, x, FEET, SITTER.h, sitting());
-    else guy(ctx, x, FEET, SITTER.h, k < 1 ? stride(t * 9, -1, .7, { face: -1, eyes: 'wide', idle: false }) : { face: -1, eyes: 'wide', crouch: sstep(down - .3, down, t) });
+    if (sk >= 1) guy(ctx, x, FEET, SITTER.h, sitting());
+    else if (sk > 0) guy(ctx, x, FEET, SITTER.h, sitDown(sk, -1, NIK, { eyes: 'wide', look: -1, idle: false, armR: [-.5 * sk, -.6 * sk], armL: [-.4 * sk, -.6 * sk] }));
+    else guy(ctx, x, FEET, SITTER.h, walk(1180 - x, HN, -1, { a: sstep(0, .1, k) * (1 - sstep(.85, 1, k)), pose: { eyes: 'wide' } }));
     darkness(ctx, 1, [860, 1300, 600]);
   } },
   // Тук. (knocks in the voice: 111.79, 112.0, 112.215)
@@ -95,7 +100,7 @@ SHOTS.push(
   { t0: C(57), trans: 'cut', draw(ctx, lt, d, t) {
     push(ctx, lt, d, 860, 1380, 1.3, 1.42);
     hallway(ctx, t, { lockK: 1, wardrobe: 1, table: 1, items: [9, 9, 9, 9, 9], lamp: 0 });
-    guy(ctx, SITTER.x, FEET, SITTER.h, sitting({ idle: false }));
+    guy(ctx, SITTER.x, FEET, SITTER.h, sitting(SITTER.x, SITTER.h, { idle: false }));
     darkness(ctx, 1, [860, 1380, 520]);
     tint(ctx, '#808080', sstep(Wd(57, 'замер'), Wd(57, 'замер') + .8, t), 'saturation');
   } },
@@ -112,7 +117,7 @@ SHOTS.push(
     let who;
     push(ctx, lt, d, 340, 1050, 1.0, 1.12);
     doorSection(ctx, t, { lamp: 1, who: x => { who = guy(x, 330, FEET, 820, { face: 1, eyes: 'closed', idle: false, lean: .04 }, NEIGHBOUR); },
-      nik: x => guy(x, 960, FEET, 700, sitting({ idle: false })) });
+      nik: x => guy(x, 960, FEET, 700, sitting(960, 700, { idle: false })) });
     darkness(ctx, 1, [240, 400, 560]);
     redEyes(ctx, who, 1, clamp((t - E(60) + .12) / .2));  // on the end of the last word, with the sting
   } },
